@@ -106,6 +106,66 @@ func TestFavoritePostIsIdempotentAndUpdatesCounts(t *testing.T) {
 	assertReactionCounts(t, secondDelete, 0, 0)
 }
 
+func TestUnlikeDoesNotMakeUndercountedPostNegative(t *testing.T) {
+	api := testutil.NewAPI(t)
+	author := testutil.SeedUserWithProfile(t, api, "author@example.com", "Author", "Nanjing University", true)
+	post := testutil.SeedPost(t, api, author.ID, "面试复盘", "正文内容", db.StatusPublished)
+	cookie := testutil.RegisterUser(t, api, "reader@example.com", "Reader")
+	testutil.SaveProfile(t, api, cookie, "Reader", "Fudan University", true)
+
+	var reader db.User
+	if err := api.DB.Where("email = ?", "reader@example.com").First(&reader).Error; err != nil {
+		t.Fatalf("load reader: %v", err)
+	}
+	if err := api.DB.Create(&db.Like{UserID: reader.ID, TargetType: "post", TargetID: post.ID}).Error; err != nil {
+		t.Fatalf("create like row: %v", err)
+	}
+
+	rec := api.JSON(t, http.MethodDelete, "/api/posts/"+uintString(post.ID)+"/like", nil, cookie)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected unlike success, got %d: %s", rec.Code, rec.Body.String())
+	}
+	assertReactionCounts(t, rec, 0, 0)
+
+	var unliked db.Post
+	if err := api.DB.First(&unliked, post.ID).Error; err != nil {
+		t.Fatalf("load unliked post: %v", err)
+	}
+	if unliked.LikeCount != 0 || unliked.HotScore != 0 {
+		t.Fatalf("expected undercounted unlike to stay at zero, got %+v", unliked)
+	}
+}
+
+func TestUnfavoriteDoesNotMakeUndercountedPostNegative(t *testing.T) {
+	api := testutil.NewAPI(t)
+	author := testutil.SeedUserWithProfile(t, api, "author@example.com", "Author", "Nanjing University", true)
+	post := testutil.SeedPost(t, api, author.ID, "面试复盘", "正文内容", db.StatusPublished)
+	cookie := testutil.RegisterUser(t, api, "reader@example.com", "Reader")
+	testutil.SaveProfile(t, api, cookie, "Reader", "Fudan University", true)
+
+	var reader db.User
+	if err := api.DB.Where("email = ?", "reader@example.com").First(&reader).Error; err != nil {
+		t.Fatalf("load reader: %v", err)
+	}
+	if err := api.DB.Create(&db.Favorite{UserID: reader.ID, PostID: post.ID}).Error; err != nil {
+		t.Fatalf("create favorite row: %v", err)
+	}
+
+	rec := api.JSON(t, http.MethodDelete, "/api/posts/"+uintString(post.ID)+"/favorite", nil, cookie)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected unfavorite success, got %d: %s", rec.Code, rec.Body.String())
+	}
+	assertReactionCounts(t, rec, 0, 0)
+
+	var unfavorited db.Post
+	if err := api.DB.First(&unfavorited, post.ID).Error; err != nil {
+		t.Fatalf("load unfavorited post: %v", err)
+	}
+	if unfavorited.FavoriteCount != 0 || unfavorited.HotScore != 0 {
+		t.Fatalf("expected undercounted unfavorite to stay at zero, got %+v", unfavorited)
+	}
+}
+
 func TestReactionsRequireAuthProfileAndPublishedPost(t *testing.T) {
 	api := testutil.NewAPI(t)
 	author := testutil.SeedUserWithProfile(t, api, "author@example.com", "Author", "Nanjing University", true)

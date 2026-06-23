@@ -150,9 +150,23 @@ func updatePostCount(tx *gorm.DB, postID uint, column string, delta int) error {
 		return errors.New("unsupported post count column")
 	}
 
+	countExpr := gorm.Expr(column+" + ?", delta)
+	likeCountExpr := gorm.Expr("like_count + ?", likeDelta(column, delta))
+	favoriteCountExpr := gorm.Expr("favorite_count + ?", favoriteDelta(column, delta))
+	if delta < 0 {
+		countExpr = gorm.Expr("CASE WHEN "+column+" > 0 THEN "+column+" - 1 ELSE 0 END")
+		likeCountExpr = gorm.Expr("CASE WHEN like_count > 0 THEN like_count - 1 ELSE 0 END")
+		favoriteCountExpr = gorm.Expr("CASE WHEN favorite_count > 0 THEN favorite_count - 1 ELSE 0 END")
+		if column == "favorite_count" {
+			likeCountExpr = gorm.Expr("like_count")
+		} else {
+			favoriteCountExpr = gorm.Expr("favorite_count")
+		}
+	}
+
 	return tx.Model(&db.Post{}).Where("id = ?", postID).Updates(map[string]any{
-		column:      gorm.Expr(column+" + ?", delta),
-		"hot_score": gorm.Expr("comment_count * ? + (like_count + ?) * ? + (favorite_count + ?)", posts.CommentHotWeight, likeDelta(column, delta), posts.LikeHotWeight, favoriteDelta(column, delta)),
+		column:      countExpr,
+		"hot_score": gorm.Expr("comment_count * ? + (?) * ? + (?)", posts.CommentHotWeight, likeCountExpr, posts.LikeHotWeight, favoriteCountExpr),
 	}).Error
 }
 
