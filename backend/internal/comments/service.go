@@ -60,12 +60,10 @@ func (s *Service) CreateComment(postID, authorID uint, body string) (*CommentVie
 			return err
 		}
 
-		post.CommentCount++
-		post.HotScore = posts.HotScore(post.CommentCount, post.LikeCount, post.FavoriteCount)
-		return tx.Model(&db.Post{}).Where("id = ?", post.ID).Updates(map[string]any{
-			"comment_count": post.CommentCount,
-			"hot_score":     post.HotScore,
-		}).Error
+		if err := incrementCommentCount(tx, post.ID); err != nil {
+			return err
+		}
+		return tx.First(&post, post.ID).Error
 	})
 	if err != nil {
 		return nil, err
@@ -113,12 +111,10 @@ func (s *Service) CreateReply(parentCommentID, authorID uint, body string) (*Com
 			return err
 		}
 
-		post.CommentCount++
-		post.HotScore = posts.HotScore(post.CommentCount, post.LikeCount, post.FavoriteCount)
-		return tx.Model(&db.Post{}).Where("id = ?", post.ID).Updates(map[string]any{
-			"comment_count": post.CommentCount,
-			"hot_score":     post.HotScore,
-		}).Error
+		if err := incrementCommentCount(tx, post.ID); err != nil {
+			return err
+		}
+		return tx.First(&post, post.ID).Error
 	})
 	if err != nil {
 		return nil, err
@@ -133,6 +129,13 @@ func validateBody(body string) (string, error) {
 		return "", ErrValidation
 	}
 	return cleanBody, nil
+}
+
+func incrementCommentCount(tx *gorm.DB, postID uint) error {
+	return tx.Model(&db.Post{}).Where("id = ?", postID).Updates(map[string]any{
+		"comment_count": gorm.Expr("comment_count + 1"),
+		"hot_score":     gorm.Expr("(comment_count + 1) * ? + like_count * ? + favorite_count", posts.CommentHotWeight, posts.LikeHotWeight),
+	}).Error
 }
 
 func toCommentView(comment db.Comment, post db.Post) *CommentView {

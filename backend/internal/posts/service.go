@@ -64,8 +64,13 @@ type CountView struct {
 	Favorites int
 }
 
+const (
+	CommentHotWeight = 3
+	LikeHotWeight    = 2
+)
+
 func HotScore(commentCount, likeCount, favoriteCount int) int {
-	return commentCount*3 + likeCount*2 + favoriteCount
+	return commentCount*CommentHotWeight + likeCount*LikeHotWeight + favoriteCount
 }
 
 func (s *Service) CreatePost(authorID uint, input CreateInput) (*PostView, error) {

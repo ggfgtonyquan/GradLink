@@ -83,23 +83,23 @@ func (h *Handler) setLike(userID, postID uint, liked bool) (*db.Post, error) {
 				return result.Error
 			}
 			if result.RowsAffected > 0 {
-				post.LikeCount++
+				if err := updatePostCount(tx, post.ID, "like_count", 1); err != nil {
+					return err
+				}
 			}
 		} else {
 			result := tx.Where("user_id = ? AND target_type = ? AND target_id = ?", userID, postTargetType, postID).Delete(&db.Like{})
 			if result.Error != nil {
 				return result.Error
 			}
-			if result.RowsAffected > 0 && post.LikeCount > 0 {
-				post.LikeCount--
+			if result.RowsAffected > 0 {
+				if err := updatePostCount(tx, post.ID, "like_count", -1); err != nil {
+					return err
+				}
 			}
 		}
 
-		post.HotScore = posts.HotScore(post.CommentCount, post.LikeCount, post.FavoriteCount)
-		return tx.Model(&db.Post{}).Where("id = ?", post.ID).Updates(map[string]any{
-			"like_count": post.LikeCount,
-			"hot_score":  post.HotScore,
-		}).Error
+		return tx.First(&post, post.ID).Error
 	})
 	if err != nil {
 		return nil, err
@@ -121,28 +121,53 @@ func (h *Handler) setFavorite(userID, postID uint, favorited bool) (*db.Post, er
 				return result.Error
 			}
 			if result.RowsAffected > 0 {
-				post.FavoriteCount++
+				if err := updatePostCount(tx, post.ID, "favorite_count", 1); err != nil {
+					return err
+				}
 			}
 		} else {
 			result := tx.Where("user_id = ? AND post_id = ?", userID, postID).Delete(&db.Favorite{})
 			if result.Error != nil {
 				return result.Error
 			}
-			if result.RowsAffected > 0 && post.FavoriteCount > 0 {
-				post.FavoriteCount--
+			if result.RowsAffected > 0 {
+				if err := updatePostCount(tx, post.ID, "favorite_count", -1); err != nil {
+					return err
+				}
 			}
 		}
 
-		post.HotScore = posts.HotScore(post.CommentCount, post.LikeCount, post.FavoriteCount)
-		return tx.Model(&db.Post{}).Where("id = ?", post.ID).Updates(map[string]any{
-			"favorite_count": post.FavoriteCount,
-			"hot_score":      post.HotScore,
-		}).Error
+		return tx.First(&post, post.ID).Error
 	})
 	if err != nil {
 		return nil, err
 	}
 	return &post, nil
+}
+
+func updatePostCount(tx *gorm.DB, postID uint, column string, delta int) error {
+	if column != "like_count" && column != "favorite_count" {
+		return errors.New("unsupported post count column")
+	}
+
+	return tx.Model(&db.Post{}).Where("id = ?", postID).Updates(map[string]any{
+		column:      gorm.Expr(column+" + ?", delta),
+		"hot_score": gorm.Expr("comment_count * ? + (like_count + ?) * ? + (favorite_count + ?)", posts.CommentHotWeight, likeDelta(column, delta), posts.LikeHotWeight, favoriteDelta(column, delta)),
+	}).Error
+}
+
+func likeDelta(column string, delta int) int {
+	if column == "like_count" {
+		return delta
+	}
+	return 0
+}
+
+func favoriteDelta(column string, delta int) int {
+	if column == "favorite_count" {
+		return delta
+	}
+	return 0
 }
 
 func currentUserAndPostID(c *gin.Context) (*db.User, uint, bool) {
