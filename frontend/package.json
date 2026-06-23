@@ -5,15 +5,15 @@
     "test": "vitest --environment jsdom"
   },
   "dependencies": {
+    "vue": "^3.5.25"
+  },
+  "devDependencies": {
     "@vitejs/plugin-vue": "^6.0.3",
-    "@vue/test-utils": "^2.4.6",
-    "vite": "^7.2.7",
-    "vitest": "^4.0.16",
-    "vue": "^3.5.25",
-    "vue-tsc": "^3.1.8",
     "@testing-library/vue": "^8.1.0",
     "jsdom": "^27.3.0",
-    "typescript": "^5.9.3"
-  },
-  "devDependencies": {}
+    "typescript": "^5.9.3",
+    "vite": "^7.2.7",
+    "vitest": "^4.0.16",
+    "vue-tsc": "^3.1.8"
+  }
 }
