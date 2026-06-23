@@ -25,9 +25,11 @@ type CreateInput struct {
 }
 
 type ListInput struct {
-	Sort  string
-	TagID *uint
-	Query string
+	Sort   string
+	TagID  *uint
+	Query  string
+	Limit  int
+	Offset int
 }
 
 type PostView struct {
@@ -153,10 +155,20 @@ func validateListInput(input ListInput) (FeedFilter, error) {
 		return FeedFilter{}, ErrValidation
 	}
 
+	limit := input.Limit
+	if limit == 0 {
+		limit = 20
+	}
+	if limit < 1 || limit > 100 || input.Offset < 0 {
+		return FeedFilter{}, ErrValidation
+	}
+
 	return FeedFilter{
-		Sort:  sort,
-		TagID: input.TagID,
-		Query: strings.TrimSpace(input.Query),
+		Sort:   sort,
+		TagID:  input.TagID,
+		Query:  strings.TrimSpace(input.Query),
+		Limit:  limit,
+		Offset: input.Offset,
 	}, nil
 }
 

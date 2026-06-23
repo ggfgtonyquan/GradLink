@@ -41,18 +41,19 @@ type StudentProfile struct {
 }
 
 type Post struct {
-	ID            uint      `gorm:"primaryKey"`
-	AuthorID      uint      `gorm:"not null;index"`
-	Title         string    `gorm:"size:160;not null"`
-	Body          string    `gorm:"type:text;not null"`
-	Status        string    `gorm:"size:32;not null;default:published;index:idx_posts_status_created"`
-	CommentCount  int       `gorm:"not null;default:0"`
-	LikeCount     int       `gorm:"not null;default:0"`
-	FavoriteCount int       `gorm:"not null;default:0"`
-	HotScore      int       `gorm:"not null;default:0;index"`
-	CreatedAt     time.Time `gorm:"index:idx_posts_status_created"`
-	UpdatedAt     time.Time
-	Author        User `gorm:"foreignKey:AuthorID;constraint:OnUpdate:CASCADE,OnDelete:RESTRICT;"`
+	ID            uint   `gorm:"primaryKey"`
+	AuthorID      uint   `gorm:"not null;index"`
+	Title         string `gorm:"size:160;not null"`
+	Body          string `gorm:"type:text;not null"`
+	Status        string `gorm:"size:32;not null;default:published;index:idx_posts_status_created"`
+	CommentCount  int    `gorm:"not null;default:0"`
+	LikeCount     int    `gorm:"not null;default:0"`
+	FavoriteCount int    `gorm:"not null;default:0"`
+	// HotScore is a denormalized ranking value maintained by interaction mutations.
+	HotScore  int       `gorm:"not null;default:0;index"`
+	CreatedAt time.Time `gorm:"index:idx_posts_status_created"`
+	UpdatedAt time.Time
+	Author    User `gorm:"foreignKey:AuthorID;constraint:OnUpdate:CASCADE,OnDelete:RESTRICT;"`
 }
 
 type Tag struct {

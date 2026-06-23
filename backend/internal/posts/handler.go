@@ -68,10 +68,23 @@ func (h *Handler) List(c *gin.Context) {
 		tagID = &value
 	}
 
+	limit, ok := optionalIntQuery(c, "limit")
+	if !ok {
+		auth.AbortWithError(c, http.StatusBadRequest, "VALIDATION_FAILED", "Invalid posts query")
+		return
+	}
+	offset, ok := optionalIntQuery(c, "offset")
+	if !ok {
+		auth.AbortWithError(c, http.StatusBadRequest, "VALIDATION_FAILED", "Invalid posts query")
+		return
+	}
+
 	views, err := h.Service.ListPosts(ListInput{
-		Sort:  c.Query("sort"),
-		TagID: tagID,
-		Query: c.Query("q"),
+		Sort:   c.Query("sort"),
+		TagID:  tagID,
+		Query:  c.Query("q"),
+		Limit:  limit,
+		Offset: offset,
 	})
 	if errors.Is(err, ErrValidation) {
 		auth.AbortWithError(c, http.StatusBadRequest, "VALIDATION_FAILED", "Invalid posts query")
@@ -87,6 +100,18 @@ func (h *Handler) List(c *gin.Context) {
 		response = append(response, postResponse(&views[i], false))
 	}
 	c.JSON(http.StatusOK, gin.H{"posts": response})
+}
+
+func optionalIntQuery(c *gin.Context, name string) (int, bool) {
+	raw := c.Query(name)
+	if raw == "" {
+		return 0, true
+	}
+	value, err := strconv.Atoi(raw)
+	if err != nil {
+		return 0, false
+	}
+	return value, true
 }
 
 func (h *Handler) Detail(c *gin.Context) {

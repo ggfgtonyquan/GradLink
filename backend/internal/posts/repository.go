@@ -1,6 +1,8 @@
 package posts
 
 import (
+	"strings"
+
 	"gorm.io/gorm"
 	"gradlink/internal/db"
 )
@@ -10,9 +12,11 @@ type Repository struct {
 }
 
 type FeedFilter struct {
-	Sort  string
-	TagID *uint
-	Query string
+	Sort   string
+	TagID  *uint
+	Query  string
+	Limit  int
+	Offset int
 }
 
 type PostRecord struct {
@@ -74,8 +78,8 @@ func (r *Repository) ListPublishedPosts(filter FeedFilter) ([]PostRecord, error)
 			Where("post_tags.tag_id = ?", *filter.TagID)
 	}
 	if filter.Query != "" {
-		like := "%" + filter.Query + "%"
-		query = query.Where("(posts.title LIKE ? OR posts.body LIKE ?)", like, like)
+		like := "%" + escapeLikePattern(filter.Query) + "%"
+		query = query.Where("(posts.title LIKE ? ESCAPE '\\' OR posts.body LIKE ? ESCAPE '\\')", like, like)
 	}
 
 	switch filter.Sort {
@@ -89,6 +93,8 @@ func (r *Repository) ListPublishedPosts(filter FeedFilter) ([]PostRecord, error)
 	if err := query.
 		Distinct("posts.id", "posts.author_id", "posts.title", "posts.body", "posts.status", "posts.comment_count", "posts.like_count", "posts.favorite_count", "posts.hot_score", "posts.created_at", "posts.updated_at").
 		Preload("Author").
+		Limit(filter.Limit).
+		Offset(filter.Offset).
 		Find(&postRows).Error; err != nil {
 		return nil, err
 	}
@@ -147,6 +153,11 @@ func (r *Repository) loadPostRecords(postRows []db.Post) ([]PostRecord, error) {
 		})
 	}
 	return records, nil
+}
+
+func escapeLikePattern(value string) string {
+	replacer := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
+	return replacer.Replace(value)
 }
 
 func loadProfiles(database *gorm.DB, authorIDs []uint) (map[uint]*db.StudentProfile, error) {
