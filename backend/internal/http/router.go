@@ -5,7 +5,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"gradlink/internal/auth"
+	"gradlink/internal/comments"
+	"gradlink/internal/moderation"
 	"gradlink/internal/posts"
+	"gradlink/internal/reactions"
 	"gradlink/internal/tags"
 	"gradlink/internal/users"
 )
@@ -23,6 +26,9 @@ func RegisterRoutes(r *gin.Engine, deps *Deps) {
 	profileHandler := users.NewProfileHandler(deps.DB)
 	postHandler := posts.NewHandler(deps.DB)
 	tagHandler := tags.NewHandler(deps.DB)
+	commentHandler := comments.NewHandler(deps.DB)
+	reactionHandler := reactions.NewHandler(deps.DB)
+	reportHandler := moderation.NewReportHandler(deps.DB)
 
 	r.POST("/api/auth/register", authHandler.Register)
 	r.POST("/api/auth/login", authHandler.Login)
@@ -35,6 +41,13 @@ func RegisterRoutes(r *gin.Engine, deps *Deps) {
 	authed.GET("/me", profileHandler.Me)
 	authed.PUT("/me/profile", profileHandler.PutProfile)
 	authed.POST("/posts", auth.RequireProfile(deps.DB), postHandler.Create)
+	authed.POST("/posts/:id/comments", auth.RequireProfile(deps.DB), commentHandler.CreateComment)
+	authed.POST("/comments/:id/replies", auth.RequireProfile(deps.DB), commentHandler.CreateReply)
+	authed.POST("/posts/:id/like", auth.RequireProfile(deps.DB), reactionHandler.Like)
+	authed.DELETE("/posts/:id/like", auth.RequireProfile(deps.DB), reactionHandler.Unlike)
+	authed.POST("/posts/:id/favorite", auth.RequireProfile(deps.DB), reactionHandler.Favorite)
+	authed.DELETE("/posts/:id/favorite", auth.RequireProfile(deps.DB), reactionHandler.Unfavorite)
+	authed.POST("/reports", auth.RequireProfile(deps.DB), reportHandler.Create)
 
 	if gin.Mode() == gin.TestMode {
 		authed.POST("/test/profile-gated", auth.RequireProfile(deps.DB), func(c *gin.Context) {

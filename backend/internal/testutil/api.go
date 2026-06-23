@@ -6,8 +6,10 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 	"gradlink/internal/db"
 	apphttp "gradlink/internal/http"
@@ -100,4 +102,83 @@ func SessionCookie(t *testing.T, rec *httptest.ResponseRecorder) *http.Cookie {
 
 	t.Fatalf("missing session cookie in response: %s", rec.Body.String())
 	return nil
+}
+
+func RegisterUser(t *testing.T, api *TestAPI, email, nickname string) *http.Cookie {
+	t.Helper()
+
+	rec := api.JSON(t, http.MethodPost, "/api/auth/register", map[string]any{
+		"email":    email,
+		"password": "correct horse battery staple",
+		"nickname": nickname,
+	})
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("register user: got %d: %s", rec.Code, rec.Body.String())
+	}
+	return SessionCookie(t, rec)
+}
+
+func SaveProfile(t *testing.T, api *TestAPI, cookie *http.Cookie, nickname, school string, schoolVisible bool) {
+	t.Helper()
+
+	rec := api.JSON(t, http.MethodPut, "/api/me/profile", map[string]any{
+		"nickname":       nickname,
+		"school":         school,
+		"educationLevel": "master",
+		"major":          "Computer Science",
+		"graduationYear": 2027,
+		"schoolVisible":  schoolVisible,
+	}, cookie)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("save profile: got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func SeedUserWithProfile(t *testing.T, api *TestAPI, email, nickname, school string, schoolVisible bool) db.User {
+	t.Helper()
+
+	hash, err := bcrypt.GenerateFromPassword([]byte("correct horse battery staple"), bcrypt.DefaultCost)
+	if err != nil {
+		t.Fatalf("hash password: %v", err)
+	}
+	user := db.User{
+		Email:        email,
+		PasswordHash: string(hash),
+		Nickname:     nickname,
+		Role:         db.UserRoleUser,
+		Status:       db.UserStatusActive,
+	}
+	if err := api.DB.Create(&user).Error; err != nil {
+		t.Fatalf("create user: %v", err)
+	}
+	profile := db.StudentProfile{
+		UserID:         user.ID,
+		School:         school,
+		EducationLevel: "master",
+		Major:          "Computer Science",
+		GraduationYear: 2027,
+		SchoolVisible:  schoolVisible,
+	}
+	if err := api.DB.Create(&profile).Error; err != nil {
+		t.Fatalf("create profile: %v", err)
+	}
+	return user
+}
+
+func SeedPost(t *testing.T, api *TestAPI, authorID uint, title, body, status string) db.Post {
+	t.Helper()
+
+	now := time.Now()
+	post := db.Post{
+		AuthorID:  authorID,
+		Title:     title,
+		Body:      body,
+		Status:    status,
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+	if err := api.DB.Create(&post).Error; err != nil {
+		t.Fatalf("create post: %v", err)
+	}
+	return post
 }

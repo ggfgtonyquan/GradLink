@@ -64,6 +64,10 @@ type CountView struct {
 	Favorites int
 }
 
+func HotScore(commentCount, likeCount, favoriteCount int) int {
+	return commentCount*3 + likeCount*2 + favoriteCount
+}
+
 func (s *Service) CreatePost(authorID uint, input CreateInput) (*PostView, error) {
 	title, body, tagIDs, err := validateCreateInput(input)
 	if err != nil {
