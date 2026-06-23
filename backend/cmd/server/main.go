@@ -10,7 +10,7 @@ import (
 )
 
 func main() {
-	database, err := db.Open("data/gradlink.db")
+	database, err := db.Open(databasePath())
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -26,7 +26,21 @@ func main() {
 	r := gin.Default()
 	apphttp.RegisterRoutes(r, &apphttp.Deps{DB: database})
 
-	if err := r.Run(":8080"); err != nil {
+	if err := r.Run(listenAddr()); err != nil {
 		log.Fatal(err)
 	}
+}
+
+func databasePath() string {
+	if value := os.Getenv("GRADLINK_DB_PATH"); value != "" {
+		return value
+	}
+	return "data/gradlink.db"
+}
+
+func listenAddr() string {
+	if value := os.Getenv("GRADLINK_ADDR"); value != "" {
+		return value
+	}
+	return ":8080"
 }

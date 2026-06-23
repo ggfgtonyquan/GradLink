@@ -8,7 +8,7 @@
       </div>
     </div>
 
-    <form class="surface profile-form" @submit.prevent>
+    <form class="surface profile-form" @submit.prevent="submit">
       <h2>完善应届生资料</h2>
       <div class="field">
         <label for="nickname">昵称</label>
@@ -30,7 +30,8 @@
         <label for="major">专业或方向</label>
         <input id="major" value="计算机方向" />
       </div>
-      <button class="primary-button" type="submit">保存并继续</button>
+      <button class="primary-button" type="submit">{{ submitting ? '保存中' : '保存并继续' }}</button>
+      <p v-if="message" class="hint">{{ message }}</p>
     </form>
 
     <div id="favorites" class="menu-list">
@@ -40,6 +41,34 @@
     </div>
   </section>
 </template>
+
+<script setup lang="ts">
+import { ref } from 'vue'
+import { api, ApiError } from '../api/http'
+
+const submitting = ref(false)
+const message = ref('')
+
+async function submit() {
+  submitting.value = true
+  message.value = ''
+  try {
+    const result = await api.saveProfile({
+      nickname: '准备秋招的同学',
+      school: '上海某高校',
+      educationLevel: '硕士',
+      major: '计算机方向',
+      graduationYear: 2026,
+      schoolVisible: true,
+    })
+    message.value = result.profileComplete ? '资料已完善。' : '资料已保存。'
+  } catch (error) {
+    message.value = error instanceof ApiError ? error.message : '保存失败'
+  } finally {
+    submitting.value = false
+  }
+}
+</script>
 
 <style scoped>
 .profile-card,

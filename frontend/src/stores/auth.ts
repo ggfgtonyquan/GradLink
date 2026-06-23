@@ -37,10 +37,23 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  async function register(email: string, password: string, nickname: string) {
+    loading.value = true
+    error.value = ''
+    try {
+      user.value = await api.register(email, password, nickname)
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : '注册失败'
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
   async function logout() {
     await api.logout()
     user.value = null
   }
 
-  return { user, loading, error, isLoggedIn, isAdmin, profileComplete, loadMe, login, logout }
+  return { user, loading, error, isLoggedIn, isAdmin, profileComplete, loadMe, login, register, logout }
 })

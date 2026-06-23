@@ -24,6 +24,14 @@ func TestSeedCreatesTagsAdminAndKeywords(t *testing.T) {
 	if countRows(t, database, "moderation_keywords") == 0 {
 		t.Fatal("expected moderation keyword seeds")
 	}
+
+	var keyword ModerationKeyword
+	if err := database.Where("keyword = ?", "加微信").First(&keyword).Error; err != nil {
+		t.Fatalf("expected local verification keyword seed: %v", err)
+	}
+	if keyword.Action != StatusPending || !keyword.Enabled {
+		t.Fatalf("expected 加微信 to be enabled pending keyword, got %+v", keyword)
+	}
 }
 
 func TestSeedCreatesDisabledAdminWithoutUsablePasswordByDefault(t *testing.T) {

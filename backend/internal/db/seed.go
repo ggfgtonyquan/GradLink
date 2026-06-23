@@ -30,6 +30,7 @@ var InitialTags = []Tag{
 
 var initialModerationKeywords = []ModerationKeyword{
 	{Keyword: "内推收费", RiskLevel: "medium", Action: StatusPending, Enabled: true},
+	{Keyword: "加微信", RiskLevel: "medium", Action: StatusPending, Enabled: true},
 	{Keyword: "包过", RiskLevel: "high", Action: StatusPending, Enabled: true},
 	{Keyword: "代考", RiskLevel: "high", Action: StatusRejected, Enabled: true},
 }
