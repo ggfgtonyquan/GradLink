@@ -38,9 +38,12 @@ func RegisterRoutes(r *gin.Engine, deps *Deps) {
 	r.GET("/api/tags", tagHandler.List)
 	r.GET("/api/posts", postHandler.List)
 	r.GET("/api/posts/:id", postHandler.Detail)
+	r.GET("/api/posts/:id/comments", commentHandler.ListComments)
 
 	authed := r.Group("/api", auth.RequireAuth(deps.DB))
 	authed.GET("/me", profileHandler.Me)
+	authed.GET("/me/posts", postHandler.ListMine)
+	authed.GET("/me/favorites", postHandler.ListFavorites)
 	authed.PUT("/me/profile", profileHandler.PutProfile)
 	authed.POST("/posts", auth.RequireProfile(deps.DB), postHandler.Create)
 	authed.POST("/posts/:id/comments", auth.RequireProfile(deps.DB), commentHandler.CreateComment)

@@ -13,7 +13,7 @@ import { Bookmark, Home, PlusCircle, UserRound } from '@lucide/vue'
 const items = [
   { to: '/', label: '首页', icon: Home },
   { to: '/compose', label: '发帖', icon: PlusCircle },
-  { to: '/profile#favorites', label: '收藏', icon: Bookmark },
+  { to: '/favorites', label: '收藏', icon: Bookmark },
   { to: '/profile', label: '我的', icon: UserRound },
 ]
 </script>

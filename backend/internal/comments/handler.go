@@ -18,6 +18,29 @@ func NewHandler(database *gorm.DB) *Handler {
 	return &Handler{Service: &Service{DB: database}}
 }
 
+func (h *Handler) ListComments(c *gin.Context) {
+	postID, ok := parseIDParam(c, "id", "Post not found")
+	if !ok {
+		return
+	}
+
+	comments, err := h.Service.ListComments(postID)
+	if errors.Is(err, ErrNotFound) {
+		auth.AbortWithError(c, http.StatusNotFound, "NOT_FOUND", "Post not found")
+		return
+	}
+	if err != nil {
+		auth.AbortWithError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Internal server error")
+		return
+	}
+
+	response := make([]gin.H, 0, len(comments))
+	for i := range comments {
+		response = append(response, commentResponse(&comments[i]))
+	}
+	c.JSON(http.StatusOK, gin.H{"comments": response})
+}
+
 func (h *Handler) CreateComment(c *gin.Context) {
 	user, ok := auth.CurrentUser(c)
 	if !ok {
@@ -101,7 +124,7 @@ func parseIDParam(c *gin.Context, name, message string) (uint, bool) {
 }
 
 func commentResponse(comment *CommentView) gin.H {
-	return gin.H{
+	payload := gin.H{
 		"id":              comment.ID,
 		"postId":          comment.PostID,
 		"parentCommentId": comment.ParentCommentID,
@@ -113,4 +136,16 @@ func commentResponse(comment *CommentView) gin.H {
 			"favorites": comment.Counts.Favorites,
 		},
 	}
+	if !comment.CreatedAt.IsZero() {
+		payload["createdAt"] = comment.CreatedAt.UTC().Format(http.TimeFormat)
+	}
+	if comment.Author.Nickname != "" {
+		payload["author"] = gin.H{
+			"nickname":       comment.Author.Nickname,
+			"school":         comment.Author.School,
+			"educationLevel": comment.Author.EducationLevel,
+			"graduationYear": comment.Author.GraduationYear,
+		}
+	}
+	return payload
 }

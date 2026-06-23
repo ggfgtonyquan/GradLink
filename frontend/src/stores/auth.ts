@@ -29,6 +29,7 @@ export const useAuthStore = defineStore('auth', () => {
     error.value = ''
     try {
       user.value = await api.login(email, password)
+      await loadMe()
     } catch (err) {
       error.value = err instanceof Error ? err.message : '登录失败'
       throw err
@@ -42,6 +43,7 @@ export const useAuthStore = defineStore('auth', () => {
     error.value = ''
     try {
       user.value = await api.register(email, password, nickname)
+      await loadMe()
     } catch (err) {
       error.value = err instanceof Error ? err.message : '注册失败'
       throw err

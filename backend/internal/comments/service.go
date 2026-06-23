@@ -3,6 +3,7 @@ package comments
 import (
 	"errors"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"gorm.io/gorm"
@@ -26,13 +27,57 @@ type CommentView struct {
 	ParentCommentID *uint
 	Body            string
 	Status          string
+	Author          AuthorView
 	Counts          CountView
+	CreatedAt       time.Time
 }
 
 type CountView struct {
 	Comments  int
 	Likes     int
 	Favorites int
+}
+
+type AuthorView struct {
+	Nickname       string
+	School         any
+	EducationLevel string
+	GraduationYear int
+}
+
+func (s *Service) ListComments(postID uint) ([]CommentView, error) {
+	var post db.Post
+	if err := s.DB.Where("id = ? AND status = ?", postID, db.StatusPublished).First(&post).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+
+	var comments []db.Comment
+	if err := s.DB.
+		Where("post_id = ? AND status = ?", postID, db.StatusPublished).
+		Preload("Author").
+		Order("created_at ASC").
+		Order("id ASC").
+		Find(&comments).Error; err != nil {
+		return nil, err
+	}
+
+	authorIDs := make([]uint, 0, len(comments))
+	for _, comment := range comments {
+		authorIDs = append(authorIDs, comment.AuthorID)
+	}
+	profileMap, err := loadProfiles(s.DB, authorIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	views := make([]CommentView, 0, len(comments))
+	for _, comment := range comments {
+		views = append(views, toCommentViewWithAuthor(comment, post, profileMap[comment.AuthorID]))
+	}
+	return views, nil
 }
 
 func (s *Service) CreateComment(postID, authorID uint, body string) (*CommentView, error) {
@@ -174,10 +219,50 @@ func toCommentView(comment db.Comment, post db.Post) *CommentView {
 		ParentCommentID: comment.ParentCommentID,
 		Body:            comment.Body,
 		Status:          comment.Status,
+		CreatedAt:       comment.CreatedAt,
 		Counts: CountView{
 			Comments:  post.CommentCount,
 			Likes:     post.LikeCount,
 			Favorites: post.FavoriteCount,
 		},
 	}
+}
+
+func toCommentViewWithAuthor(comment db.Comment, post db.Post, profile *db.StudentProfile) CommentView {
+	view := toCommentView(comment, post)
+	view.Author = authorView(comment.Author, profile)
+	return *view
+}
+
+func authorView(user db.User, profile *db.StudentProfile) AuthorView {
+	view := AuthorView{
+		Nickname: user.Nickname,
+		School:   nil,
+	}
+	if profile != nil {
+		view.EducationLevel = profile.EducationLevel
+		view.GraduationYear = profile.GraduationYear
+		if profile.SchoolVisible {
+			view.School = profile.School
+		}
+	}
+	return view
+}
+
+func loadProfiles(database *gorm.DB, authorIDs []uint) (map[uint]*db.StudentProfile, error) {
+	if len(authorIDs) == 0 {
+		return map[uint]*db.StudentProfile{}, nil
+	}
+
+	var profiles []db.StudentProfile
+	if err := database.Where("user_id IN ?", authorIDs).Find(&profiles).Error; err != nil {
+		return nil, err
+	}
+
+	profileMap := make(map[uint]*db.StudentProfile, len(profiles))
+	for i := range profiles {
+		profile := profiles[i]
+		profileMap[profile.UserID] = &profile
+	}
+	return profileMap, nil
 }

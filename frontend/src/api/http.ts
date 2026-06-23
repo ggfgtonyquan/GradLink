@@ -12,14 +12,19 @@ export class ApiError extends Error {
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const response = await fetch(path, {
-    credentials: 'include',
-    ...init,
-    headers: {
-      ...(init.body ? jsonHeaders : {}),
-      ...init.headers,
-    },
-  })
+  let response: Response
+  try {
+    response = await fetch(path, {
+      credentials: 'include',
+      ...init,
+      headers: {
+        ...(init.body ? jsonHeaders : {}),
+        ...init.headers,
+      },
+    })
+  } catch {
+    throw new ApiError('NETWORK_ERROR', '无法连接后端服务，请确认后端已启动。')
+  }
 
   const text = await response.text()
   const data = text ? JSON.parse(text) : {}
@@ -44,13 +49,16 @@ export const api = {
     }),
   logout: () => request<{ ok: boolean }>('/api/auth/logout', { method: 'POST' }),
   saveProfile: (payload: Record<string, unknown>) =>
-    request<{ profileComplete: boolean }>('/api/me/profile', {
+    request<{ profileComplete: boolean; profile: CurrentUser['profile'] }>('/api/me/profile', {
       method: 'PUT',
       body: JSON.stringify(payload),
     }),
   tags: () => request<{ tags: Tag[] }>('/api/tags'),
   posts: (query = '') => request<{ posts: Post[] }>(`/api/posts${query}`),
+  myPosts: () => request<{ posts: Post[] }>('/api/me/posts'),
+  myFavorites: () => request<{ posts: Post[] }>('/api/me/favorites'),
   post: (id: number) => request<Post>(`/api/posts/${id}`),
+  comments: (postId: number) => request<{ comments: Comment[] }>(`/api/posts/${postId}/comments`),
   createPost: (payload: { title: string; body: string; tagIds: number[] }) =>
     request<Post>('/api/posts', {
       method: 'POST',

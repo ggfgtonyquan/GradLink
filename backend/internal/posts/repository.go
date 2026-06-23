@@ -111,6 +111,39 @@ func (r *Repository) ListPublishedPosts(filter FeedFilter) ([]PostRecord, error)
 	return r.loadPostRecords(postRows)
 }
 
+func (r *Repository) ListPostsByAuthor(authorID uint, filter FeedFilter) ([]PostRecord, error) {
+	var postRows []db.Post
+	if err := r.DB.Model(&db.Post{}).
+		Where("posts.author_id = ?", authorID).
+		Preload("Author").
+		Order("posts.created_at DESC").
+		Order("posts.id DESC").
+		Limit(filter.Limit).
+		Offset(filter.Offset).
+		Find(&postRows).Error; err != nil {
+		return nil, err
+	}
+
+	return r.loadPostRecords(postRows)
+}
+
+func (r *Repository) ListFavoritePosts(userID uint, filter FeedFilter) ([]PostRecord, error) {
+	var postRows []db.Post
+	if err := r.DB.Model(&db.Post{}).
+		Joins("JOIN favorites ON favorites.post_id = posts.id").
+		Where("favorites.user_id = ? AND posts.status = ?", userID, db.StatusPublished).
+		Preload("Author").
+		Order("favorites.created_at DESC").
+		Order("posts.id DESC").
+		Limit(filter.Limit).
+		Offset(filter.Offset).
+		Find(&postRows).Error; err != nil {
+		return nil, err
+	}
+
+	return r.loadPostRecords(postRows)
+}
+
 func (r *Repository) GetPublishedPost(postID uint) (*PostRecord, error) {
 	var post db.Post
 	err := r.DB.

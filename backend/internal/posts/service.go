@@ -108,12 +108,35 @@ func (s *Service) ListPosts(input ListInput) ([]PostView, error) {
 		return nil, err
 	}
 
-	views := make([]PostView, 0, len(records))
-	for _, record := range records {
-		record := record
-		views = append(views, toPostView(&record))
+	return postViews(records), nil
+}
+
+func (s *Service) ListPostsByAuthor(authorID uint, input ListInput) ([]PostView, error) {
+	filter, err := validateListInput(input)
+	if err != nil {
+		return nil, err
 	}
-	return views, nil
+
+	records, err := s.Repository.ListPostsByAuthor(authorID, filter)
+	if err != nil {
+		return nil, err
+	}
+
+	return postViews(records), nil
+}
+
+func (s *Service) ListFavoritePosts(userID uint, input ListInput) ([]PostView, error) {
+	filter, err := validateListInput(input)
+	if err != nil {
+		return nil, err
+	}
+
+	records, err := s.Repository.ListFavoritePosts(userID, filter)
+	if err != nil {
+		return nil, err
+	}
+
+	return postViews(records), nil
 }
 
 func (s *Service) GetPost(postID uint) (*PostView, error) {
@@ -127,6 +150,15 @@ func (s *Service) GetPost(postID uint) (*PostView, error) {
 
 	view := toPostView(record)
 	return &view, nil
+}
+
+func postViews(records []PostRecord) []PostView {
+	views := make([]PostView, 0, len(records))
+	for _, record := range records {
+		record := record
+		views = append(views, toPostView(&record))
+	}
+	return views
 }
 
 func validateCreateInput(input CreateInput) (string, string, []uint, error) {

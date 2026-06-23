@@ -39,7 +39,17 @@ export interface Comment {
   parentCommentId: number | null
   body: string
   status: ContentStatus
+  author?: Author
   counts: Counts
+  createdAt?: string
+}
+
+export interface StudentProfile {
+  school: string
+  educationLevel: string
+  major: string
+  graduationYear: number
+  schoolVisible: boolean
 }
 
 export interface CurrentUser {
@@ -49,6 +59,7 @@ export interface CurrentUser {
   role: UserRole
   status: string
   profileComplete?: boolean
+  profile?: StudentProfile
 }
 
 export interface ApiErrorPayload {

@@ -18,10 +18,15 @@
 
       <div class="field">
         <label>选择标签</label>
-        <TagChips :tags="seedTags" :selected-ids="selectedTagIds" @toggle-tag="toggleTag" />
+        <TagChips :tags="tags" :selected-ids="selectedTagIds" @toggle-tag="toggleTag" />
       </div>
 
-      <button class="primary-button full" type="submit">
+      <div v-if="gateMessage" class="gate-box">
+        <p>{{ gateMessage }}</p>
+        <RouterLink :to="gateLink" class="primary-button">{{ gateAction }}</RouterLink>
+      </div>
+
+      <button v-else class="primary-button full" type="submit" :disabled="submitting">
         <Send aria-hidden="true" />
         {{ submitting ? '发布中' : '发布' }}
       </button>
@@ -32,19 +37,40 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Send } from '@lucide/vue'
 import { api, ApiError } from '../api/http'
+import type { Tag } from '../api/types'
 import TagChips from '../components/TagChips.vue'
 import { seedTags } from '../stores/feed'
+import { useAuthStore } from '../stores/auth'
 
 const router = useRouter()
-const title = ref('两个 offer 怎么选：互联网测试开发 vs 银行科技岗')
-const body = ref('base 差距不大，一个成长快但强度高，一个稳定但技术栈偏传统。我比较看重前三年的成长，也担心强度太高影响状态。')
-const selectedTagIds = ref<number[]>([2, 7])
+const auth = useAuthStore()
+const title = ref('')
+const body = ref('')
+const tags = ref<Tag[]>(seedTags)
+const selectedTagIds = ref<number[]>([])
 const submitting = ref(false)
 const message = ref('')
+
+const gateMessage = computed(() => {
+  if (!auth.isLoggedIn) return '登录后才能发布讨论。'
+  if (!auth.profileComplete) return '完善应届生资料后才能发帖。'
+  return ''
+})
+const gateLink = computed(() => (auth.isLoggedIn ? '/profile' : '/login'))
+const gateAction = computed(() => (auth.isLoggedIn ? '去完善资料' : '去登录'))
+
+onMounted(async () => {
+  await auth.loadMe()
+  try {
+    tags.value = (await api.tags()).tags
+  } catch {
+    tags.value = seedTags
+  }
+})
 
 function toggleTag(tagId: number) {
   if (selectedTagIds.value.includes(tagId)) {
@@ -57,6 +83,7 @@ function toggleTag(tagId: number) {
 }
 
 async function submit() {
+  if (gateMessage.value) return
   submitting.value = true
   message.value = ''
   try {
@@ -87,5 +114,19 @@ async function submit() {
 .primary-button svg {
   width: 17px;
   height: 17px;
+}
+
+.gate-box {
+  display: grid;
+  gap: 10px;
+  border-radius: 8px;
+  background: var(--surface-soft);
+  padding: 12px;
+}
+
+.gate-box p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
 }
 </style>

@@ -9,45 +9,41 @@
     </div>
 
     <TagChips
-      :tags="seedTags"
-      :selected-ids="selectedTagId ? [selectedTagId] : []"
-      :sort="sort"
+      :tags="feed.tags"
+      :selected-ids="feed.activeTagId ? [feed.activeTagId] : []"
+      :sort="feed.sort"
       show-sort
-      @update:sort="sort = $event"
+      @update:sort="setSort"
       @toggle-tag="toggleTag"
     />
 
     <div class="feed-list">
-      <PostCard v-for="post in filteredPosts" :key="post.id" :post="post" />
+      <PostCard v-for="post in feed.visiblePosts" :key="post.id" :post="post" />
+      <p v-if="!feed.visiblePosts.length" class="empty-state">暂时没有帖子。</p>
     </div>
   </section>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { onMounted } from 'vue'
 import PostCard from '../components/PostCard.vue'
 import TagChips from '../components/TagChips.vue'
-import { seedPosts, seedTags } from '../stores/feed'
+import { useFeedStore } from '../stores/feed'
 
-const sort = ref<'latest' | 'hot'>('latest')
-const selectedTagId = ref<number | null>(null)
+const feed = useFeedStore()
 
-const filteredPosts = computed(() => {
-  const filtered =
-    selectedTagId.value === null
-      ? seedPosts
-      : seedPosts.filter((post) => post.tags.some((tag) => tag.id === selectedTagId.value))
-
-  return [...filtered].sort((a, b) => {
-    if (sort.value === 'hot') {
-      return b.counts.likes + b.counts.comments - (a.counts.likes + a.counts.comments)
-    }
-    return a.id - b.id
-  })
+onMounted(() => {
+  feed.load()
 })
 
 function toggleTag(tagId: number) {
-  selectedTagId.value = selectedTagId.value === tagId ? null : tagId
+  feed.activeTagId = feed.activeTagId === tagId ? null : tagId
+  feed.load()
+}
+
+function setSort(sort: 'latest' | 'hot') {
+  feed.sort = sort
+  feed.load()
 }
 </script>
 
@@ -69,5 +65,15 @@ function toggleTag(tagId: number) {
 .feed-list {
   display: grid;
   gap: 10px;
+}
+
+.empty-state {
+  margin: 0;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  padding: 16px;
+  color: var(--muted);
+  text-align: center;
+  font-size: 14px;
 }
 </style>

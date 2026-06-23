@@ -65,12 +65,54 @@ func (h *Handler) Create(c *gin.Context) {
 }
 
 func (h *Handler) List(c *gin.Context) {
+	input, ok := listInputFromQuery(c)
+	if !ok {
+		return
+	}
+
+	views, err := h.Service.ListPosts(input)
+	h.respondPostList(c, views, err)
+}
+
+func (h *Handler) ListMine(c *gin.Context) {
+	user, ok := auth.CurrentUser(c)
+	if !ok {
+		auth.AbortWithError(c, http.StatusUnauthorized, "UNAUTHENTICATED", "Authentication required")
+		return
+	}
+
+	input, ok := listInputFromQuery(c)
+	if !ok {
+		return
+	}
+
+	views, err := h.Service.ListPostsByAuthor(user.ID, input)
+	h.respondPostList(c, views, err)
+}
+
+func (h *Handler) ListFavorites(c *gin.Context) {
+	user, ok := auth.CurrentUser(c)
+	if !ok {
+		auth.AbortWithError(c, http.StatusUnauthorized, "UNAUTHENTICATED", "Authentication required")
+		return
+	}
+
+	input, ok := listInputFromQuery(c)
+	if !ok {
+		return
+	}
+
+	views, err := h.Service.ListFavoritePosts(user.ID, input)
+	h.respondPostList(c, views, err)
+}
+
+func listInputFromQuery(c *gin.Context) (ListInput, bool) {
 	var tagID *uint
 	if raw := c.Query("tagId"); raw != "" {
 		parsed, err := strconv.ParseUint(raw, 10, 64)
 		if err != nil || parsed == 0 {
 			auth.AbortWithError(c, http.StatusBadRequest, "VALIDATION_FAILED", "Invalid posts query")
-			return
+			return ListInput{}, false
 		}
 		value := uint(parsed)
 		tagID = &value
@@ -79,21 +121,24 @@ func (h *Handler) List(c *gin.Context) {
 	limit, ok := optionalIntQuery(c, "limit")
 	if !ok {
 		auth.AbortWithError(c, http.StatusBadRequest, "VALIDATION_FAILED", "Invalid posts query")
-		return
+		return ListInput{}, false
 	}
 	offset, ok := optionalIntQuery(c, "offset")
 	if !ok {
 		auth.AbortWithError(c, http.StatusBadRequest, "VALIDATION_FAILED", "Invalid posts query")
-		return
+		return ListInput{}, false
 	}
 
-	views, err := h.Service.ListPosts(ListInput{
+	return ListInput{
 		Sort:   c.Query("sort"),
 		TagID:  tagID,
 		Query:  c.Query("q"),
 		Limit:  limit,
 		Offset: offset,
-	})
+	}, true
+}
+
+func (h *Handler) respondPostList(c *gin.Context, views []PostView, err error) {
 	if errors.Is(err, ErrValidation) {
 		auth.AbortWithError(c, http.StatusBadRequest, "VALIDATION_FAILED", "Invalid posts query")
 		return

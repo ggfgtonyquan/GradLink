@@ -2,7 +2,10 @@
   <article class="page">
     <RouterLink to="/" class="back-link">返回首页</RouterLink>
 
-    <section class="surface detail">
+    <p v-if="loading" class="hint">正在加载帖子...</p>
+    <p v-if="message" class="hint">{{ message }}</p>
+
+    <section v-if="post" class="surface detail">
       <h1 class="screen-title">{{ post.title }}</h1>
       <p class="hint">{{ authorLine }} · {{ post.createdAt }}</p>
       <div class="tag-row">
@@ -11,11 +14,11 @@
       <p class="article">{{ post.body }}</p>
 
       <div class="action-bar">
-        <button class="secondary-button" type="button">
+        <button class="secondary-button" type="button" @click="likePost">
           <ThumbsUp aria-hidden="true" />
           赞 {{ post.counts.likes }}
         </button>
-        <button class="secondary-button" type="button">
+        <button class="secondary-button" type="button" @click="favoritePost">
           <Bookmark aria-hidden="true" />
           收藏
         </button>
@@ -26,36 +29,130 @@
       </div>
     </section>
 
-    <section class="comments">
+    <section v-if="post" class="comments">
       <h2>评论 {{ post.counts.comments }}</h2>
-      <article class="comment surface">
-        <p class="hint">2026届本科 · 软件工程</p>
-        <p>可以按背景、难点、方案、结果、复盘准备，每段都配一个可以量化的点。</p>
-        <div class="reply">回复：这个结构很清楚，我试一下。</div>
+      <article v-for="comment in comments" :key="comment.id" class="comment surface">
+        <p class="hint">{{ commentAuthorLine(comment) }} · {{ comment.createdAt }}</p>
+        <p>{{ comment.body }}</p>
       </article>
-      <article class="comment surface">
-        <p class="hint">2025届硕士 · 后端方向</p>
-        <p>准备一版 2 分钟讲法和一版 8 分钟讲法，先讲主线，再根据追问展开。</p>
-      </article>
+      <p v-if="!comments.length" class="empty-state">还没有评论。</p>
     </section>
 
-    <form class="comment-composer" @submit.prevent>
-      <input aria-label="写评论" placeholder="写评论..." />
-      <button class="primary-button" type="submit">发送</button>
+    <form v-if="post" class="comment-composer" @submit.prevent="submitComment">
+      <input v-model="commentBody" aria-label="写评论" :placeholder="commentPlaceholder" />
+      <button class="primary-button" type="submit" :disabled="commentSubmitting || !commentBody.trim()">发送</button>
     </form>
   </article>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed, onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { Bookmark, Flag, ThumbsUp } from '@lucide/vue'
-import { seedPosts } from '../stores/feed'
+import { api, ApiError } from '../api/http'
+import type { Comment, Post } from '../api/types'
+import { useAuthStore } from '../stores/auth'
 
 const route = useRoute()
+const router = useRouter()
+const auth = useAuthStore()
 const postId = Number(route.params.id || 1)
-const post = computed(() => seedPosts.find((item) => item.id === postId) ?? seedPosts[0])
-const authorLine = computed(() => `${post.value.author.graduationYear}届${post.value.author.educationLevel}`)
+const post = ref<Post | null>(null)
+const comments = ref<Comment[]>([])
+const commentBody = ref('')
+const loading = ref(false)
+const commentSubmitting = ref(false)
+const message = ref('')
+
+const authorLine = computed(() => {
+  if (!post.value) return ''
+  const school = post.value.author.school ? `${post.value.author.school} · ` : ''
+  return `${school}${post.value.author.graduationYear}届${post.value.author.educationLevel}`
+})
+
+const commentPlaceholder = computed(() => {
+  if (!auth.isLoggedIn) return '登录后评论'
+  if (!auth.profileComplete) return '完善资料后评论'
+  return '写评论...'
+})
+
+onMounted(async () => {
+  await auth.loadMe()
+  await loadDetail()
+})
+
+async function loadDetail() {
+  loading.value = true
+  message.value = ''
+  try {
+    const [postResult, commentsResult] = await Promise.all([api.post(postId), api.comments(postId)])
+    post.value = postResult
+    comments.value = commentsResult.comments
+  } catch (error) {
+    message.value = error instanceof ApiError ? error.message : '帖子加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+function commentAuthorLine(comment: Comment) {
+  const author = comment.author
+  if (!author) return '同学'
+  const school = author.school ? `${author.school} · ` : ''
+  return `${school}${author.graduationYear}届${author.educationLevel}`
+}
+
+async function submitComment() {
+  if (!auth.isLoggedIn) {
+    await router.push('/login')
+    return
+  }
+  if (!auth.profileComplete) {
+    await router.push('/profile')
+    return
+  }
+  if (!post.value || !commentBody.value.trim()) return
+
+  commentSubmitting.value = true
+  message.value = ''
+  try {
+    const comment = await api.createComment(post.value.id, commentBody.value)
+    commentBody.value = ''
+    if (comment.status === 'pending') {
+      message.value = '评论已进入待审核队列。'
+    } else {
+      comments.value = [...comments.value, comment]
+      post.value = {
+        ...post.value,
+        counts: { ...post.value.counts, comments: comment.counts.comments },
+      }
+    }
+  } catch (error) {
+    message.value = error instanceof ApiError ? error.message : '评论失败'
+  } finally {
+    commentSubmitting.value = false
+  }
+}
+
+async function likePost() {
+  if (!post.value) return
+  try {
+    const result = (await api.likePost(post.value.id)) as { counts?: Post['counts'] }
+    if (result.counts) post.value = { ...post.value, counts: result.counts }
+  } catch (error) {
+    message.value = error instanceof ApiError ? error.message : '点赞失败'
+  }
+}
+
+async function favoritePost() {
+  if (!post.value) return
+  try {
+    const result = (await api.favoritePost(post.value.id)) as { counts?: Post['counts'] }
+    if (result.counts) post.value = { ...post.value, counts: result.counts }
+  } catch (error) {
+    message.value = error instanceof ApiError ? error.message : '收藏失败'
+  }
+}
 </script>
 
 <style scoped>
@@ -129,6 +226,16 @@ const authorLine = computed(() => `${post.value.author.graduationYear}届${post.
   padding: 10px;
   font-size: 13px;
   line-height: 1.5;
+}
+
+.empty-state {
+  margin: 0;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  padding: 16px;
+  color: var(--muted);
+  text-align: center;
+  font-size: 14px;
 }
 
 .comment-composer {
