@@ -2,22 +2,22 @@
 
 ## 项目结构与模块组织
 
-本仓库 `master` 分支主要保存 GradLink 的产品文档；当前 MVP 实现位于 `.worktrees/gradlink-mvp`。
+本仓库 `master` 分支包含 GradLink 的文档、后端和前端实现。
 
 - `docs/`：产品规格、实施计划、低保真和参考原型。
-- `.worktrees/gradlink-mvp/backend/`：Go 后端，使用 Gin、GORM、SQLite。
-- `.worktrees/gradlink-mvp/backend/internal/`：后端领域模块，如 `auth`、`posts`、`comments`、`users`、`moderation`、`admin`。
-- `.worktrees/gradlink-mvp/backend/cmd/server/`：本地 API 服务入口。
-- `.worktrees/gradlink-mvp/frontend/`：Vue 3 + Vite + TypeScript 前端。
-- `.worktrees/gradlink-mvp/frontend/src/`：应用壳、路由、页面、状态、API 客户端和共享组件。
+- `backend/`：Go 后端，使用 Gin、GORM、SQLite。
+- `backend/internal/`：后端领域模块，如 `auth`、`posts`、`comments`、`users`、`moderation`、`admin`。
+- `backend/cmd/server/`：本地 API 服务入口。
+- `frontend/`：Vue 3 + Vite + TypeScript 前端。
+- `frontend/src/`：应用壳、路由、页面、状态、API 客户端和共享组件。
 - 测试与代码就近放置：Go 使用 `*_test.go`，前端使用 `__tests__/*.test.ts`。
 
 ## 构建、测试与本地开发命令
 
-除非特别说明，命令都在实现 worktree 中运行：
+除非特别说明，命令都在仓库根目录中运行：
 
 ```powershell
-cd D:\workspace\GradLink\.worktrees\gradlink-mvp
+cd D:\workspace\GradLink
 ```
 
 - 后端开发服务：`cd backend; go run ./cmd/server`
@@ -43,4 +43,4 @@ Go 文件必须使用 `gofmt` 格式化；包保持小而清晰，按领域组�
 
 ## Agent 专用说明
 
-不要默认认为根目录 `master` 有可运行应用代码；开始工作前先确认当前 active worktree。若浏览器验证在当前环境不稳定，优先使用测试、构建和命令行 API 检查。不要覆盖或回退与当前任务无关的用户改动。
+开始工作前先确认当前分支和工作区状态。若浏览器验证在当前环境不稳定，优先使用测试、构建和命令行 API 检查。不要覆盖或回退与当前任务无关的用户改动。
