@@ -63,6 +63,48 @@ func TestRegisterCreatesActiveUserWithHashedPasswordAndSession(t *testing.T) {
 	}
 }
 
+func TestRegisterRollsBackUserWhenSessionCreationFails(t *testing.T) {
+	api := testutil.NewAPI(t)
+	if err := api.DB.Migrator().DropTable(&db.Session{}); err != nil {
+		t.Fatalf("drop sessions table: %v", err)
+	}
+
+	rec := api.JSON(t, http.MethodPost, "/api/auth/register", map[string]any{
+		"email":    "rollback@example.com",
+		"password": "correct horse battery staple",
+		"nickname": "Rollback User",
+	})
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("expected session failure to return 500, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	var count int64
+	if err := api.DB.Model(&db.User{}).Where("email = ?", "rollback@example.com").Count(&count).Error; err != nil {
+		t.Fatalf("count users: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("expected registration transaction rollback, found %d user rows", count)
+	}
+}
+
+func TestRegisterCanIssueSecureSessionCookie(t *testing.T) {
+	t.Setenv("GRADLINK_COOKIE_SECURE", "true")
+	api := testutil.NewAPI(t)
+
+	rec := api.JSON(t, http.MethodPost, "/api/auth/register", map[string]any{
+		"email":    "secure@example.com",
+		"password": "correct horse battery staple",
+		"nickname": "Secure User",
+	})
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d: %s", rec.Code, rec.Body.String())
+	}
+	cookie := testutil.SessionCookie(t, rec)
+	if !cookie.Secure {
+		t.Fatal("expected secure cookie when GRADLINK_COOKIE_SECURE=true")
+	}
+}
+
 func TestRegisterValidationAndDuplicateEmailUseConsistentErrors(t *testing.T) {
 	api := testutil.NewAPI(t)
 
@@ -97,6 +139,37 @@ func TestRegisterValidationAndDuplicateEmailUseConsistentErrors(t *testing.T) {
 	}
 	if code := testutil.ErrorCode(t, duplicate); code != "VALIDATION_FAILED" {
 		t.Fatalf("expected VALIDATION_FAILED, got %s", code)
+	}
+
+	tooLong := api.JSON(t, http.MethodPost, "/api/auth/register", map[string]any{
+		"email":    "long-password@example.com",
+		"password": strings.Repeat("a", 73),
+		"nickname": "Long Password",
+	})
+	if tooLong.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for too-long password, got %d: %s", tooLong.Code, tooLong.Body.String())
+	}
+	if code := testutil.ErrorCode(t, tooLong); code != "VALIDATION_FAILED" {
+		t.Fatalf("expected VALIDATION_FAILED, got %s", code)
+	}
+}
+
+func TestRegisterDatabaseFailureIsInternalError(t *testing.T) {
+	api := testutil.NewAPI(t)
+	if err := api.DB.Migrator().DropTable(&db.User{}); err != nil {
+		t.Fatalf("drop users table: %v", err)
+	}
+
+	rec := api.JSON(t, http.MethodPost, "/api/auth/register", map[string]any{
+		"email":    "broken@example.com",
+		"password": "correct horse battery staple",
+		"nickname": "Broken User",
+	})
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("expected real database failure to return 500, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if code := testutil.ErrorCode(t, rec); code != "INTERNAL_ERROR" {
+		t.Fatalf("expected INTERNAL_ERROR, got %s", code)
 	}
 }
 

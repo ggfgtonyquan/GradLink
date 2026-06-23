@@ -37,18 +37,30 @@ func (s *Service) Register(input RegisterInput) (*db.User, string, error) {
 		return nil, "", err
 	}
 
-	user := db.User{
-		Email:        email,
-		PasswordHash: hash,
-		Nickname:     nickname,
-		Role:         db.UserRoleUser,
-		Status:       db.UserStatusActive,
-	}
-	if err := s.DB.Create(&user).Error; err != nil {
-		return nil, "", ErrValidation
-	}
+	var user db.User
+	var token string
+	err = s.DB.Transaction(func(tx *gorm.DB) error {
+		user = db.User{
+			Email:        email,
+			PasswordHash: hash,
+			Nickname:     nickname,
+			Role:         db.UserRoleUser,
+			Status:       db.UserStatusActive,
+		}
+		if err := tx.Create(&user).Error; err != nil {
+			if isUniqueConstraintError(err) {
+				return ErrValidation
+			}
+			return err
+		}
 
-	token, err := s.Sessions.Create(user.ID)
+		createdToken, err := (&SessionStore{DB: tx}).Create(user.ID)
+		if err != nil {
+			return err
+		}
+		token = createdToken
+		return nil
+	})
 	if err != nil {
 		return nil, "", err
 	}
@@ -91,7 +103,8 @@ func normalizeRegistration(input RegisterInput) (string, string, error) {
 		return "", "", ErrValidation
 	}
 	nickname := strings.TrimSpace(input.Nickname)
-	if nickname == "" || len(nickname) > 80 || len(input.Password) < 8 {
+	passwordLen := len([]byte(input.Password))
+	if nickname == "" || len(nickname) > 80 || passwordLen < 8 || passwordLen > 72 {
 		return "", "", ErrValidation
 	}
 
@@ -109,4 +122,11 @@ func normalizeEmail(email string) (string, error) {
 	}
 
 	return normalized, nil
+}
+
+func isUniqueConstraintError(err error) bool {
+	message := strings.ToLower(err.Error())
+	return strings.Contains(message, "unique constraint") ||
+		strings.Contains(message, "unique constraint failed") ||
+		strings.Contains(message, "duplicate")
 }

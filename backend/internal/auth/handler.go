@@ -3,6 +3,8 @@ package auth
 import (
 	"errors"
 	"net/http"
+	"os"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -91,7 +93,12 @@ func SessionTTLSeconds() int {
 
 func setSessionCookie(c *gin.Context, token string, maxAge int) {
 	c.SetSameSite(http.SameSiteLaxMode)
-	c.SetCookie(SessionCookieName, token, maxAge, "/", "", false, true)
+	c.SetCookie(SessionCookieName, token, maxAge, "/", "", sessionCookieSecure(), true)
+}
+
+func sessionCookieSecure() bool {
+	value := strings.ToLower(strings.TrimSpace(os.Getenv("GRADLINK_COOKIE_SECURE")))
+	return value == "true" || value == "1" || value == "yes"
 }
 
 func userResponse(user *db.User) gin.H {
