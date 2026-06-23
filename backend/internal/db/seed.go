@@ -1,6 +1,18 @@
 package db
 
-import "gorm.io/gorm"
+import (
+	"strings"
+
+	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
+)
+
+const seededAdminEmail = "admin@gradlink.local"
+
+type SeedOptions struct {
+	AdminPassword string
+}
 
 var InitialTags = []Tag{
 	{Name: "面试经验", Slug: "interview-experience", DisplayOrder: 10},
@@ -21,30 +33,91 @@ var initialModerationKeywords = []ModerationKeyword{
 }
 
 func Seed(database *gorm.DB) error {
+	return SeedWithOptions(database, SeedOptions{})
+}
+
+func SeedWithOptions(database *gorm.DB, options SeedOptions) error {
 	return database.Transaction(func(tx *gorm.DB) error {
 		for _, tag := range InitialTags {
-			if err := tx.Where("slug = ?", tag.Slug).FirstOrCreate(&tag).Error; err != nil {
+			if err := tx.Clauses(clause.OnConflict{
+				Columns:   []clause.Column{{Name: "slug"}},
+				DoUpdates: clause.AssignmentColumns([]string{"name", "display_order", "updated_at"}),
+			}).Create(&tag).Error; err != nil {
 				return err
 			}
 		}
 
-		admin := User{
-			Email:        "admin@gradlink.local",
-			PasswordHash: "$2a$10$7EqJtq98hPqEX7fNZaFWoOhi/e1tRg3Y5tYk.OwMfe0X3Syq3JqjG",
-			Nickname:     "GradLink Admin",
-			Role:         "admin",
-			Status:       "active",
-		}
-		if err := tx.Where("email = ?", admin.Email).FirstOrCreate(&admin).Error; err != nil {
+		if err := seedAdmin(tx, options); err != nil {
 			return err
 		}
 
 		for _, keyword := range initialModerationKeywords {
-			if err := tx.Where("keyword = ?", keyword.Keyword).FirstOrCreate(&keyword).Error; err != nil {
+			if err := tx.Clauses(clause.OnConflict{
+				Columns:   []clause.Column{{Name: "keyword"}},
+				DoUpdates: clause.AssignmentColumns([]string{"risk_level", "action", "enabled", "updated_at"}),
+			}).Create(&keyword).Error; err != nil {
 				return err
 			}
 		}
 
 		return nil
 	})
+}
+
+func seedAdmin(tx *gorm.DB, options SeedOptions) error {
+	adminPassword := strings.TrimSpace(options.AdminPassword)
+	if adminPassword != "" {
+		hash, err := bcrypt.GenerateFromPassword([]byte(adminPassword), bcrypt.DefaultCost)
+		if err != nil {
+			return err
+		}
+
+		admin := User{
+			Email:        seededAdminEmail,
+			PasswordHash: string(hash),
+			Nickname:     "GradLink Admin",
+			Role:         UserRoleAdmin,
+			Status:       UserStatusActive,
+		}
+		return tx.Clauses(clause.OnConflict{
+			Columns: []clause.Column{{Name: "email"}},
+			DoUpdates: clause.Assignments(map[string]interface{}{
+				"password_hash": admin.PasswordHash,
+				"nickname":      admin.Nickname,
+				"role":          admin.Role,
+				"status":        admin.Status,
+				"updated_at":    gorm.Expr("CURRENT_TIMESTAMP"),
+			}),
+		}).Create(&admin).Error
+	}
+
+	var existing User
+	err := tx.Where("email = ?", seededAdminEmail).First(&existing).Error
+	if err == nil {
+		return tx.Model(&existing).Updates(map[string]interface{}{
+			"nickname": "GradLink Admin",
+			"role":     UserRoleAdmin,
+		}).Error
+	}
+	if err != gorm.ErrRecordNotFound {
+		return err
+	}
+
+	token, err := randomToken(32)
+	if err != nil {
+		return err
+	}
+	hash, err := bcrypt.GenerateFromPassword([]byte("disabled-admin-"+token), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+
+	admin := User{
+		Email:        seededAdminEmail,
+		PasswordHash: string(hash),
+		Nickname:     "GradLink Admin",
+		Role:         UserRoleAdmin,
+		Status:       UserStatusDisabled,
+	}
+	return tx.Create(&admin).Error
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"os"
 
 	"github.com/gin-gonic/gin"
 	"gradlink/internal/db"
@@ -16,7 +17,9 @@ func main() {
 	if err := db.Migrate(database); err != nil {
 		log.Fatal(err)
 	}
-	if err := db.Seed(database); err != nil {
+	if err := db.SeedWithOptions(database, db.SeedOptions{
+		AdminPassword: os.Getenv("GRADLINK_ADMIN_PASSWORD"),
+	}); err != nil {
 		log.Fatal(err)
 	}
 

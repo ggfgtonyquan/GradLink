@@ -8,6 +8,12 @@ const (
 	StatusHidden    = "hidden"
 	StatusRejected  = "rejected"
 	StatusDeleted   = "deleted"
+
+	UserRoleAdmin = "admin"
+	UserRoleUser  = "user"
+
+	UserStatusActive   = "active"
+	UserStatusDisabled = "disabled"
 )
 
 type User struct {
@@ -31,6 +37,7 @@ type StudentProfile struct {
 	SchoolVisible  bool   `gorm:"not null;default:true"`
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
+	User           User `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 }
 
 type Post struct {
@@ -45,6 +52,7 @@ type Post struct {
 	HotScore      int       `gorm:"not null;default:0;index"`
 	CreatedAt     time.Time `gorm:"index:idx_posts_status_created"`
 	UpdatedAt     time.Time
+	Author        User `gorm:"foreignKey:AuthorID;constraint:OnUpdate:CASCADE,OnDelete:RESTRICT;"`
 }
 
 type Tag struct {
@@ -60,6 +68,8 @@ type PostTag struct {
 	PostID    uint `gorm:"primaryKey"`
 	TagID     uint `gorm:"primaryKey;index"`
 	CreatedAt time.Time
+	Post      Post `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
+	Tag       Tag  `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 }
 
 type Comment struct {
@@ -71,6 +81,9 @@ type Comment struct {
 	Status          string `gorm:"size:32;not null;default:published;index"`
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
+	Post            Post     `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
+	Author          User     `gorm:"foreignKey:AuthorID;constraint:OnUpdate:CASCADE,OnDelete:RESTRICT;"`
+	ParentComment   *Comment `gorm:"foreignKey:ParentCommentID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 }
 
 type Like struct {
@@ -79,6 +92,7 @@ type Like struct {
 	TargetType string `gorm:"size:32;not null;uniqueIndex:idx_likes_user_target"`
 	TargetID   uint   `gorm:"not null;uniqueIndex:idx_likes_user_target"`
 	CreatedAt  time.Time
+	User       User `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 }
 
 type Favorite struct {
@@ -86,6 +100,8 @@ type Favorite struct {
 	UserID    uint `gorm:"not null;uniqueIndex:idx_favorites_user_post"`
 	PostID    uint `gorm:"not null;uniqueIndex:idx_favorites_user_post"`
 	CreatedAt time.Time
+	User      User `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
+	Post      Post `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 }
 
 type Report struct {
@@ -98,6 +114,7 @@ type Report struct {
 	Status     string `gorm:"size:32;not null;default:pending;index"`
 	CreatedAt  time.Time
 	UpdatedAt  time.Time
+	Reporter   User `gorm:"foreignKey:ReporterID;constraint:OnUpdate:CASCADE,OnDelete:RESTRICT;"`
 }
 
 type ModerationKeyword struct {
@@ -120,6 +137,7 @@ type ModerationQueueItem struct {
 	Decision        string `gorm:"type:text"`
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
+	Reviewer        *User `gorm:"foreignKey:ReviewerID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 }
 
 func (ModerationQueueItem) TableName() string {
@@ -133,4 +151,5 @@ type Session struct {
 	ExpiresAt time.Time `gorm:"not null;index"`
 	CreatedAt time.Time
 	UpdatedAt time.Time
+	User      User `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 }
