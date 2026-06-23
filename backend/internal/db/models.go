@@ -14,6 +14,8 @@ const (
 
 	UserStatusActive   = "active"
 	UserStatusDisabled = "disabled"
+
+	ReportStatusResolved = "resolved"
 )
 
 type User struct {

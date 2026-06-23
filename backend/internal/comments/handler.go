@@ -80,6 +80,14 @@ func (h *Handler) respondComment(c *gin.Context, comment *CommentView, err error
 		return
 	}
 
+	if IsRejected(comment) {
+		auth.AbortWithError(c, http.StatusUnprocessableEntity, "CONTENT_REJECTED", "Content rejected by moderation")
+		return
+	}
+	if IsPendingReview(comment) {
+		c.JSON(http.StatusAccepted, commentResponse(comment))
+		return
+	}
 	c.JSON(http.StatusCreated, commentResponse(comment))
 }
 

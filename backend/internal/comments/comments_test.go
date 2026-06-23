@@ -79,6 +79,56 @@ func TestCreateCommentOnPublishedPostIncrementsCountsAndHotScore(t *testing.T) {
 	}
 }
 
+func TestCreateCommentWithKeywordGoesToPendingReview(t *testing.T) {
+	api := testutil.NewAPI(t)
+	author := testutil.SeedUserWithProfile(t, api, "author@example.com", "Author", "Nanjing University", true)
+	post := testutil.SeedPost(t, api, author.ID, "面试复盘", "正文内容", db.StatusPublished)
+	if err := api.DB.Create(&db.ModerationKeyword{
+		Keyword:   "加微信",
+		RiskLevel: "medium",
+		Action:    db.StatusPending,
+		Enabled:   true,
+	}).Error; err != nil {
+		t.Fatalf("create keyword: %v", err)
+	}
+	cookie := testutil.RegisterUser(t, api, "commenter@example.com", "Commenter")
+	testutil.SaveProfile(t, api, cookie, "Commenter", "Fudan University", true)
+
+	rec := api.JSON(t, http.MethodPost, "/api/posts/"+uintString(post.ID)+"/comments", map[string]any{
+		"body": "建议加微信详细聊一下内推流程。",
+	}, cookie)
+	if rec.Code != http.StatusAccepted {
+		t.Fatalf("expected pending comment 202, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	payload := testutil.DecodeJSON(t, rec)
+	if payload["status"] != db.StatusPending {
+		t.Fatalf("expected pending comment response, got %s", rec.Body.String())
+	}
+
+	var stored db.Comment
+	if err := api.DB.First(&stored, uint(payload["id"].(float64))).Error; err != nil {
+		t.Fatalf("load comment: %v", err)
+	}
+	if stored.Status != db.StatusPending {
+		t.Fatalf("expected stored comment pending, got %q", stored.Status)
+	}
+	var updated db.Post
+	if err := api.DB.First(&updated, post.ID).Error; err != nil {
+		t.Fatalf("load post: %v", err)
+	}
+	if updated.CommentCount != 0 {
+		t.Fatalf("pending comment should not increment visible count, got %+v", updated)
+	}
+	var item db.ModerationQueueItem
+	if err := api.DB.Where("target_type = ? AND target_id = ?", "comment", stored.ID).First(&item).Error; err != nil {
+		t.Fatalf("load moderation queue item: %v", err)
+	}
+	if item.Status != db.StatusPending {
+		t.Fatalf("expected pending queue item, got %+v", item)
+	}
+}
+
 func TestCreateCommentValidatesPayloadAndPublishedPost(t *testing.T) {
 	api := testutil.NewAPI(t)
 	author := testutil.SeedUserWithProfile(t, api, "author@example.com", "Author", "Nanjing University", true)

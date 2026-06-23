@@ -5,6 +5,7 @@ import (
 
 	"gorm.io/gorm"
 	"gradlink/internal/db"
+	"gradlink/internal/moderation"
 )
 
 type Repository struct {
@@ -35,14 +36,19 @@ func (r *Repository) ListTagsByIDs(tagIDs []uint) ([]db.Tag, error) {
 	return tags, err
 }
 
-func (r *Repository) CreatePublishedPost(authorID uint, title, body string, tags []db.Tag) (*PostRecord, error) {
+func (r *Repository) CreatePost(authorID uint, title, body string, tags []db.Tag) (*PostRecord, error) {
 	var postID uint
 	err := r.DB.Transaction(func(tx *gorm.DB) error {
+		decision, err := moderation.ReviewText(tx, title+"\n"+body)
+		if err != nil {
+			return err
+		}
+
 		post := db.Post{
 			AuthorID: authorID,
 			Title:    title,
 			Body:     body,
-			Status:   db.StatusPublished,
+			Status:   decision.Status,
 		}
 		if err := tx.Create(&post).Error; err != nil {
 			return err
@@ -58,6 +64,9 @@ func (r *Repository) CreatePublishedPost(authorID uint, title, body string, tags
 		if err := tx.Create(&postTags).Error; err != nil {
 			return err
 		}
+		if err := moderation.EnqueueIfNeeded(tx, "post", post.ID, decision); err != nil {
+			return err
+		}
 
 		postID = post.ID
 		return nil
@@ -66,7 +75,7 @@ func (r *Repository) CreatePublishedPost(authorID uint, title, body string, tags
 		return nil, err
 	}
 
-	return r.GetPublishedPost(postID)
+	return r.GetPost(postID)
 }
 
 func (r *Repository) ListPublishedPosts(filter FeedFilter) ([]PostRecord, error) {
@@ -106,6 +115,27 @@ func (r *Repository) GetPublishedPost(postID uint) (*PostRecord, error) {
 	var post db.Post
 	err := r.DB.
 		Where("posts.id = ? AND posts.status = ?", postID, db.StatusPublished).
+		Preload("Author").
+		First(&post).Error
+	if err != nil {
+		return nil, err
+	}
+
+	records, err := r.loadPostRecords([]db.Post{post})
+	if err != nil {
+		return nil, err
+	}
+	if len(records) == 0 {
+		return nil, gorm.ErrRecordNotFound
+	}
+
+	return &records[0], nil
+}
+
+func (r *Repository) GetPost(postID uint) (*PostRecord, error) {
+	var post db.Post
+	err := r.DB.
+		Where("posts.id = ?", postID).
 		Preload("Author").
 		First(&post).Error
 	if err != nil {

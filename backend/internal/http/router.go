@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"gradlink/internal/admin"
 	"gradlink/internal/auth"
 	"gradlink/internal/comments"
 	"gradlink/internal/moderation"
@@ -29,6 +30,7 @@ func RegisterRoutes(r *gin.Engine, deps *Deps) {
 	commentHandler := comments.NewHandler(deps.DB)
 	reactionHandler := reactions.NewHandler(deps.DB)
 	reportHandler := moderation.NewReportHandler(deps.DB)
+	adminHandler := admin.NewHandler(deps.DB)
 
 	r.POST("/api/auth/register", authHandler.Register)
 	r.POST("/api/auth/login", authHandler.Login)
@@ -48,6 +50,21 @@ func RegisterRoutes(r *gin.Engine, deps *Deps) {
 	authed.POST("/posts/:id/favorite", auth.RequireProfile(deps.DB), reactionHandler.Favorite)
 	authed.DELETE("/posts/:id/favorite", auth.RequireProfile(deps.DB), reactionHandler.Unfavorite)
 	authed.POST("/reports", auth.RequireProfile(deps.DB), reportHandler.Create)
+
+	adminRoutes := authed.Group("/admin", admin.RequireAdmin())
+	adminRoutes.GET("/moderation", adminHandler.ListModeration)
+	adminRoutes.POST("/moderation/:id/approve", adminHandler.ApproveModeration)
+	adminRoutes.POST("/moderation/:id/reject", adminHandler.RejectModeration)
+	adminRoutes.GET("/reports", adminHandler.ListReports)
+	adminRoutes.POST("/reports/:id/resolve", adminHandler.ResolveReport)
+	adminRoutes.POST("/reports/:id/reject", adminHandler.RejectReport)
+	adminRoutes.GET("/users", adminHandler.ListUsers)
+	adminRoutes.POST("/users/:id/ban", adminHandler.BanUser)
+	adminRoutes.POST("/users/:id/unban", adminHandler.UnbanUser)
+	adminRoutes.GET("/keywords", adminHandler.ListKeywords)
+	adminRoutes.POST("/keywords", adminHandler.CreateKeyword)
+	adminRoutes.PUT("/keywords/:id", adminHandler.UpdateKeyword)
+	adminRoutes.DELETE("/keywords/:id", adminHandler.DeleteKeyword)
 
 	if gin.Mode() == gin.TestMode {
 		authed.POST("/test/profile-gated", auth.RequireProfile(deps.DB), func(c *gin.Context) {

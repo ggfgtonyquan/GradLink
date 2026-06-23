@@ -53,6 +53,14 @@ func (h *Handler) Create(c *gin.Context) {
 		return
 	}
 
+	if IsRejected(post) {
+		auth.AbortWithError(c, http.StatusUnprocessableEntity, "CONTENT_REJECTED", "Content rejected by moderation")
+		return
+	}
+	if IsPendingReview(post) {
+		c.JSON(http.StatusAccepted, postResponse(post, true))
+		return
+	}
 	c.JSON(http.StatusCreated, postResponse(post, true))
 }
 

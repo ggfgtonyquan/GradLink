@@ -7,6 +7,7 @@ import (
 	"unicode/utf8"
 
 	"gorm.io/gorm"
+	"gradlink/internal/db"
 )
 
 var (
@@ -87,7 +88,7 @@ func (s *Service) CreatePost(authorID uint, input CreateInput) (*PostView, error
 		return nil, ErrValidation
 	}
 
-	record, err := s.Repository.CreatePublishedPost(authorID, title, body, tags)
+	record, err := s.Repository.CreatePost(authorID, title, body, tags)
 	if err != nil {
 		return nil, err
 	}
@@ -207,6 +208,14 @@ func toPostView(record *PostRecord) PostView {
 		},
 		CreatedAt: record.Post.CreatedAt,
 	}
+}
+
+func IsPendingReview(post *PostView) bool {
+	return post != nil && post.Status == db.StatusPending
+}
+
+func IsRejected(post *PostView) bool {
+	return post != nil && post.Status == db.StatusRejected
 }
 
 func authorView(record *PostRecord) AuthorView {

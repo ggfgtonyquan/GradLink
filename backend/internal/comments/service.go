@@ -7,6 +7,7 @@ import (
 
 	"gorm.io/gorm"
 	"gradlink/internal/db"
+	"gradlink/internal/moderation"
 	"gradlink/internal/posts"
 )
 
@@ -50,14 +51,24 @@ func (s *Service) CreateComment(postID, authorID uint, body string) (*CommentVie
 			return err
 		}
 
+		decision, err := moderation.ReviewText(tx, cleanBody)
+		if err != nil {
+			return err
+		}
 		created = db.Comment{
 			PostID:   post.ID,
 			AuthorID: authorID,
 			Body:     cleanBody,
-			Status:   db.StatusPublished,
+			Status:   decision.Status,
 		}
 		if err := tx.Create(&created).Error; err != nil {
 			return err
+		}
+		if err := moderation.EnqueueIfNeeded(tx, "comment", created.ID, decision); err != nil {
+			return err
+		}
+		if created.Status != db.StatusPublished {
+			return tx.First(&post, post.ID).Error
 		}
 
 		if err := incrementCommentCount(tx, post.ID); err != nil {
@@ -100,15 +111,25 @@ func (s *Service) CreateReply(parentCommentID, authorID uint, body string) (*Com
 			return err
 		}
 
+		decision, err := moderation.ReviewText(tx, cleanBody)
+		if err != nil {
+			return err
+		}
 		created = db.Comment{
 			PostID:          parent.PostID,
 			AuthorID:        authorID,
 			ParentCommentID: &parent.ID,
 			Body:            cleanBody,
-			Status:          db.StatusPublished,
+			Status:          decision.Status,
 		}
 		if err := tx.Create(&created).Error; err != nil {
 			return err
+		}
+		if err := moderation.EnqueueIfNeeded(tx, "comment", created.ID, decision); err != nil {
+			return err
+		}
+		if created.Status != db.StatusPublished {
+			return tx.First(&post, post.ID).Error
 		}
 
 		if err := incrementCommentCount(tx, post.ID); err != nil {
@@ -121,6 +142,14 @@ func (s *Service) CreateReply(parentCommentID, authorID uint, body string) (*Com
 	}
 
 	return toCommentView(created, post), nil
+}
+
+func IsPendingReview(comment *CommentView) bool {
+	return comment != nil && comment.Status == db.StatusPending
+}
+
+func IsRejected(comment *CommentView) bool {
+	return comment != nil && comment.Status == db.StatusRejected
 }
 
 func validateBody(body string) (string, error) {
