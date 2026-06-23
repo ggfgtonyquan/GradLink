@@ -9,6 +9,8 @@ import (
 )
 
 const seededAdminEmail = "admin@gradlink.local"
+const legacySeededAdminHash = "$2a$10$7EqJtq98hPqEX7fNZaFWoOhi/e1tRg3Y5tYk.OwMfe0X3Syq3JqjG"
+const legacySeededAdminPassword = "password"
 
 type SeedOptions struct {
 	AdminPassword string
@@ -94,6 +96,19 @@ func seedAdmin(tx *gorm.DB, options SeedOptions) error {
 	var existing User
 	err := tx.Where("email = ?", seededAdminEmail).First(&existing).Error
 	if err == nil {
+		if legacyAdminPasswordMatches(existing.PasswordHash) {
+			hash, err := unusablePasswordHash()
+			if err != nil {
+				return err
+			}
+			return tx.Model(&existing).Updates(map[string]interface{}{
+				"nickname":      "GradLink Admin",
+				"password_hash": hash,
+				"role":          UserRoleAdmin,
+				"status":        UserStatusDisabled,
+			}).Error
+		}
+
 		return tx.Model(&existing).Updates(map[string]interface{}{
 			"nickname": "GradLink Admin",
 			"role":     UserRoleAdmin,
@@ -103,11 +118,7 @@ func seedAdmin(tx *gorm.DB, options SeedOptions) error {
 		return err
 	}
 
-	token, err := randomToken(32)
-	if err != nil {
-		return err
-	}
-	hash, err := bcrypt.GenerateFromPassword([]byte("disabled-admin-"+token), bcrypt.DefaultCost)
+	hash, err := unusablePasswordHash()
 	if err != nil {
 		return err
 	}
@@ -120,4 +131,25 @@ func seedAdmin(tx *gorm.DB, options SeedOptions) error {
 		Status:       UserStatusDisabled,
 	}
 	return tx.Create(&admin).Error
+}
+
+func legacyAdminPasswordMatches(hash string) bool {
+	if hash == legacySeededAdminHash {
+		return true
+	}
+
+	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(legacySeededAdminPassword)) == nil
+}
+
+func unusablePasswordHash() (string, error) {
+	token, err := randomToken(32)
+	if err != nil {
+		return "", err
+	}
+	hash, err := bcrypt.GenerateFromPassword([]byte("disabled-admin-"+token), bcrypt.DefaultCost)
+	if err != nil {
+		return "", err
+	}
+
+	return string(hash), nil
 }

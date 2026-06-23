@@ -90,6 +90,35 @@ func TestSeedWithoutPasswordDoesNotOverwriteExistingAdminPassword(t *testing.T) 
 	}
 }
 
+func TestSeedWithoutPasswordDisablesLegacyDefaultAdmin(t *testing.T) {
+	database := testDB(t)
+	admin := User{
+		Email:        "admin@gradlink.local",
+		PasswordHash: "$2a$10$7EqJtq98hPqEX7fNZaFWoOhi/e1tRg3Y5tYk.OwMfe0X3Syq3JqjG",
+		Nickname:     "GradLink Admin",
+		Role:         UserRoleAdmin,
+		Status:       UserStatusActive,
+	}
+	if err := database.Create(&admin).Error; err != nil {
+		t.Fatalf("create legacy admin: %v", err)
+	}
+
+	if err := Seed(database); err != nil {
+		t.Fatalf("seed test database: %v", err)
+	}
+
+	remediated := loadAdminUser(t, database)
+	if remediated.Status != UserStatusDisabled {
+		t.Fatalf("expected remediated admin to be disabled, got %q", remediated.Status)
+	}
+	if remediated.PasswordHash == admin.PasswordHash {
+		t.Fatal("expected legacy admin password hash to be rotated")
+	}
+	if err := bcrypt.CompareHashAndPassword([]byte(remediated.PasswordHash), []byte("password")); err == nil {
+		t.Fatal("remediated admin still matches the old default password")
+	}
+}
+
 func TestSeedReconcilesTagsAndModerationKeywords(t *testing.T) {
 	database := testDB(t)
 
