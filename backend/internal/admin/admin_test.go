@@ -55,6 +55,76 @@ func TestAdminCanApprovePendingModerationItem(t *testing.T) {
 	}
 }
 
+func TestAdminModerationListShowsOnlyPendingContentDetails(t *testing.T) {
+	api := testutil.NewAPI(t)
+	author := testutil.SeedUserWithProfile(t, api, "author@example.com", "Author", "Fudan University", true)
+	pendingPost := testutil.SeedPost(t, api, author.ID, "待审核帖子标题", "待审核帖子正文", db.StatusPending)
+	approvedPost := testutil.SeedPost(t, api, author.ID, "已处理帖子标题", "已处理帖子正文", db.StatusPublished)
+	pendingItem := db.ModerationQueueItem{TargetType: "post", TargetID: pendingPost.ID, MatchedKeywords: "加微信", Status: db.StatusPending}
+	approvedItem := db.ModerationQueueItem{TargetType: "post", TargetID: approvedPost.ID, MatchedKeywords: "包过", Status: db.StatusPublished}
+	if err := api.DB.Create(&pendingItem).Error; err != nil {
+		t.Fatalf("create pending item: %v", err)
+	}
+	if err := api.DB.Create(&approvedItem).Error; err != nil {
+		t.Fatalf("create approved item: %v", err)
+	}
+	adminCookie := seedAdminCookie(t, api)
+
+	queue := api.JSON(t, http.MethodGet, "/api/admin/moderation", nil, adminCookie)
+	if queue.Code != http.StatusOK {
+		t.Fatalf("expected queue 200, got %d: %s", queue.Code, queue.Body.String())
+	}
+	if !strings.Contains(queue.Body.String(), "待审核帖子标题") || !strings.Contains(queue.Body.String(), "待审核帖子正文") {
+		t.Fatalf("expected pending content details in queue, got %s", queue.Body.String())
+	}
+	if strings.Contains(queue.Body.String(), "已处理帖子标题") {
+		t.Fatalf("expected completed moderation item to be omitted, got %s", queue.Body.String())
+	}
+}
+
+func TestAdminApprovingPendingCommentUpdatesPostCounts(t *testing.T) {
+	api := testutil.NewAPI(t)
+	author := testutil.SeedUserWithProfile(t, api, "author@example.com", "Author", "Fudan University", true)
+	commenter := testutil.SeedUserWithProfile(t, api, "commenter@example.com", "Commenter", "Nanjing University", true)
+	post := testutil.SeedPost(t, api, author.ID, "面试复盘", "正文内容", db.StatusPublished)
+	comment := db.Comment{PostID: post.ID, AuthorID: commenter.ID, Body: "建议加微信聊", Status: db.StatusPending}
+	if err := api.DB.Create(&comment).Error; err != nil {
+		t.Fatalf("create pending comment: %v", err)
+	}
+	item := db.ModerationQueueItem{TargetType: "comment", TargetID: comment.ID, MatchedKeywords: "加微信", Status: db.StatusPending}
+	if err := api.DB.Create(&item).Error; err != nil {
+		t.Fatalf("create moderation item: %v", err)
+	}
+	adminCookie := seedAdminCookie(t, api)
+
+	approve := api.JSON(t, http.MethodPost, "/api/admin/moderation/"+uintString(item.ID)+"/approve", nil, adminCookie)
+	if approve.Code != http.StatusOK {
+		t.Fatalf("expected approve 200, got %d: %s", approve.Code, approve.Body.String())
+	}
+
+	var updated db.Post
+	if err := api.DB.First(&updated, post.ID).Error; err != nil {
+		t.Fatalf("load updated post: %v", err)
+	}
+	if updated.CommentCount != 1 || updated.HotScore != 3 {
+		t.Fatalf("expected approved comment to update counts, got %+v", updated)
+	}
+}
+
+func TestAdminModerationDecisionFailsForMissingTarget(t *testing.T) {
+	api := testutil.NewAPI(t)
+	item := db.ModerationQueueItem{TargetType: "post", TargetID: 999, MatchedKeywords: "加微信", Status: db.StatusPending}
+	if err := api.DB.Create(&item).Error; err != nil {
+		t.Fatalf("create moderation item: %v", err)
+	}
+	adminCookie := seedAdminCookie(t, api)
+
+	approve := api.JSON(t, http.MethodPost, "/api/admin/moderation/"+uintString(item.ID)+"/approve", nil, adminCookie)
+	if approve.Code != http.StatusNotFound {
+		t.Fatalf("expected missing target 404, got %d: %s", approve.Code, approve.Body.String())
+	}
+}
+
 func TestAdminEndpointsRequireAdminRole(t *testing.T) {
 	api := testutil.NewAPI(t)
 
@@ -180,6 +250,24 @@ func TestAdminCanManageKeywords(t *testing.T) {
 	}
 	if count != 0 {
 		t.Fatalf("expected keyword deleted, got count %d", count)
+	}
+}
+
+func TestAdminKeywordCreateDefaultsToEnabled(t *testing.T) {
+	api := testutil.NewAPI(t)
+	adminCookie := seedAdminCookie(t, api)
+
+	create := api.JSON(t, http.MethodPost, "/api/admin/keywords", map[string]any{
+		"keyword":   "内推收费",
+		"riskLevel": "medium",
+		"action":    db.StatusPending,
+	}, adminCookie)
+	if create.Code != http.StatusCreated {
+		t.Fatalf("expected keyword create 201, got %d: %s", create.Code, create.Body.String())
+	}
+	payload := testutil.DecodeJSON(t, create)
+	if payload["enabled"] != true {
+		t.Fatalf("expected omitted enabled to default true, got %s", create.Body.String())
 	}
 }
 

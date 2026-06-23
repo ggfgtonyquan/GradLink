@@ -38,14 +38,19 @@ func RequireAdmin() gin.HandlerFunc {
 
 func (h *Handler) ListModeration(c *gin.Context) {
 	var items []db.ModerationQueueItem
-	if err := h.DB.Order("created_at ASC").Order("id ASC").Find(&items).Error; err != nil {
+	if err := h.DB.Where("status = ?", db.StatusPending).Order("created_at ASC").Order("id ASC").Find(&items).Error; err != nil {
 		auth.AbortWithError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Internal server error")
 		return
 	}
 
 	response := make([]gin.H, 0, len(items))
 	for _, item := range items {
-		response = append(response, moderationItemResponse(item))
+		payload, err := h.moderationItemWithContent(item)
+		if err != nil {
+			auth.AbortWithError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Internal server error")
+			return
+		}
+		response = append(response, payload)
 	}
 	c.JSON(http.StatusOK, gin.H{"items": response})
 }
@@ -186,7 +191,7 @@ func (h *Handler) CreateKeyword(c *gin.Context) {
 		Keyword:   input.Keyword,
 		RiskLevel: input.RiskLevel,
 		Action:    input.Action,
-		Enabled:   input.Enabled,
+		Enabled:   *input.Enabled,
 	}
 	if err := h.DB.Create(&keyword).Error; err != nil {
 		auth.AbortWithError(c, http.StatusBadRequest, "VALIDATION_FAILED", "Invalid keyword payload")
@@ -216,7 +221,7 @@ func (h *Handler) UpdateKeyword(c *gin.Context) {
 			"keyword":    input.Keyword,
 			"risk_level": input.RiskLevel,
 			"action":     input.Action,
-			"enabled":    input.Enabled,
+			"enabled":    *input.Enabled,
 		}).Error
 	})
 	if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -296,12 +301,37 @@ func (h *Handler) decideModeration(c *gin.Context, status string) {
 func updateTargetStatus(tx *gorm.DB, targetType string, targetID uint, status string) error {
 	switch targetType {
 	case "post":
-		return tx.Model(&db.Post{}).Where("id = ?", targetID).Update("status", status).Error
+		result := tx.Model(&db.Post{}).Where("id = ?", targetID).Update("status", status)
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected == 0 {
+			return gorm.ErrRecordNotFound
+		}
+		return nil
 	case "comment":
-		return tx.Model(&db.Comment{}).Where("id = ?", targetID).Update("status", status).Error
+		var comment db.Comment
+		if err := tx.First(&comment, targetID).Error; err != nil {
+			return err
+		}
+		previousStatus := comment.Status
+		if err := tx.Model(&comment).Update("status", status).Error; err != nil {
+			return err
+		}
+		if previousStatus != db.StatusPublished && status == db.StatusPublished {
+			return incrementPostCommentCount(tx, comment.PostID)
+		}
+		return nil
 	default:
 		return errors.New("unsupported moderation target")
 	}
+}
+
+func incrementPostCommentCount(tx *gorm.DB, postID uint) error {
+	return tx.Model(&db.Post{}).Where("id = ?", postID).Updates(map[string]any{
+		"comment_count": gorm.Expr("comment_count + 1"),
+		"hot_score":     gorm.Expr("(comment_count + 1) * 3 + like_count * 2 + favorite_count"),
+	}).Error
 }
 
 func parseIDParam(c *gin.Context, name string) (uint, bool) {
@@ -322,6 +352,38 @@ func moderationItemResponse(item db.ModerationQueueItem) gin.H {
 		"reviewerId":      item.ReviewerID,
 		"decision":        item.Decision,
 	}
+}
+
+func (h *Handler) moderationItemWithContent(item db.ModerationQueueItem) (gin.H, error) {
+	payload := moderationItemResponse(item)
+	switch item.TargetType {
+	case "post":
+		var post db.Post
+		if err := h.DB.Preload("Author").First(&post, item.TargetID).Error; err != nil {
+			return nil, err
+		}
+		payload["content"] = gin.H{
+			"title":    post.Title,
+			"body":     post.Body,
+			"authorId": post.AuthorID,
+			"author":   post.Author.Nickname,
+			"status":   post.Status,
+		}
+	case "comment":
+		var comment db.Comment
+		if err := h.DB.Preload("Author").First(&comment, item.TargetID).Error; err != nil {
+			return nil, err
+		}
+		payload["content"] = gin.H{
+			"title":    "评论",
+			"body":     comment.Body,
+			"postId":   comment.PostID,
+			"authorId": comment.AuthorID,
+			"author":   comment.Author.Nickname,
+			"status":   comment.Status,
+		}
+	}
+	return payload, nil
 }
 
 func reportResponse(report db.Report) gin.H {
@@ -350,7 +412,7 @@ type keywordInput struct {
 	Keyword   string `json:"keyword"`
 	RiskLevel string `json:"riskLevel"`
 	Action    string `json:"action"`
-	Enabled   bool   `json:"enabled"`
+	Enabled   *bool  `json:"enabled"`
 }
 
 func bindKeywordInput(c *gin.Context) (keywordInput, bool) {
@@ -363,6 +425,10 @@ func bindKeywordInput(c *gin.Context) (keywordInput, bool) {
 	raw.Keyword = strings.TrimSpace(raw.Keyword)
 	raw.RiskLevel = strings.TrimSpace(raw.RiskLevel)
 	raw.Action = strings.TrimSpace(raw.Action)
+	if raw.Enabled == nil {
+		defaultEnabled := true
+		raw.Enabled = &defaultEnabled
+	}
 	if raw.Keyword == "" || raw.RiskLevel == "" || (raw.Action != db.StatusPending && raw.Action != db.StatusRejected) {
 		auth.AbortWithError(c, http.StatusBadRequest, "VALIDATION_FAILED", "Invalid keyword payload")
 		return keywordInput{}, false
