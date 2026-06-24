@@ -68,4 +68,7 @@ func TestMeFavoritesReturnsCurrentUsersFavoritePosts(t *testing.T) {
 	if post["title"] != "收藏的帖子" {
 		t.Fatalf("expected favorite post title, got %s", rec.Body.String())
 	}
+	if post["favorited"] != true {
+		t.Fatalf("expected favorite list post to report favorited=true, got %s", rec.Body.String())
+	}
 }

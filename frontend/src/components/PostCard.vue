@@ -8,6 +8,9 @@
     <div class="meta-row">
       <span>{{ authorLine }}</span>
       <span class="metric-row">
+        <span v-if="post.favorited" class="favorite-marker" aria-label="已收藏" title="已收藏">
+          <Bookmark aria-hidden="true" fill="currentColor" />
+        </span>
         <span>评论 {{ post.counts.comments }}</span>
         <span>赞 {{ post.counts.likes }}</span>
       </span>
@@ -17,6 +20,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { Bookmark } from '@lucide/vue'
 import type { Post } from '../api/types'
 
 const props = defineProps<{ post: Post }>()
@@ -78,5 +82,16 @@ const tagNames = computed(() => props.post.tags.map((tag) => tag.name).join(' / 
   gap: 10px;
   align-items: center;
   flex: 0 0 auto;
+}
+
+.favorite-marker {
+  display: inline-grid;
+  place-items: center;
+  color: var(--brand);
+}
+
+.favorite-marker svg {
+  width: 14px;
+  height: 14px;
 }
 </style>

@@ -37,7 +37,7 @@ func RegisterRoutes(r *gin.Engine, deps *Deps) {
 	r.POST("/api/auth/logout", auth.RequireAuth(deps.DB), authHandler.Logout)
 	r.GET("/api/tags", tagHandler.List)
 	r.GET("/api/posts", postHandler.List)
-	r.GET("/api/posts/:id", postHandler.Detail)
+	r.GET("/api/posts/:id", auth.OptionalAuth(deps.DB), postHandler.Detail)
 	r.GET("/api/posts/:id/comments", commentHandler.ListComments)
 
 	authed := r.Group("/api", auth.RequireAuth(deps.DB))

@@ -11,7 +11,7 @@
     <div class="menu-list">
       <button class="menu-row" type="button" @click="activePanel = 'posts'">我的帖子 <span>{{ myPosts.length }}</span></button>
       <RouterLink class="menu-row" to="/favorites">我的收藏 <span>{{ myFavorites.length }}</span></RouterLink>
-      <button class="menu-row" type="button" @click="activePanel = 'settings'">账号设置 <span>{{ auth.user?.email ?? '' }}</span></button>
+      <button class="menu-row" type="button" @click="togglePanel('settings')">账号设置 <span>{{ auth.user?.email ?? '' }}</span></button>
     </div>
 
     <section v-if="activePanel === 'posts'" id="posts" class="panel">
@@ -76,7 +76,7 @@ const auth = useAuthStore()
 const router = useRouter()
 const submitting = ref(false)
 const message = ref('')
-const activePanel = ref<'posts' | 'settings'>('posts')
+const activePanel = ref<'posts' | 'settings' | null>('posts')
 const myPosts = ref<Post[]>([])
 const myFavorites = ref<Post[]>([])
 const form = reactive({
@@ -113,6 +113,10 @@ async function loadActivity() {
   const [postsResult, favoritesResult] = await Promise.all([api.myPosts(), api.myFavorites()])
   myPosts.value = postsResult.posts
   myFavorites.value = favoritesResult.posts
+}
+
+function togglePanel(panel: 'posts' | 'settings') {
+  activePanel.value = activePanel.value === panel ? null : panel
 }
 
 onMounted(async () => {

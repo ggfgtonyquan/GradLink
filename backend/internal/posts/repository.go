@@ -144,6 +144,16 @@ func (r *Repository) ListFavoritePosts(userID uint, filter FeedFilter) ([]PostRe
 	return r.loadPostRecords(postRows)
 }
 
+func (r *Repository) HasFavorite(userID, postID uint) (bool, error) {
+	var count int64
+	if err := r.DB.Model(&db.Favorite{}).
+		Where("user_id = ? AND post_id = ?", userID, postID).
+		Count(&count).Error; err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
 func (r *Repository) GetPublishedPost(postID uint) (*PostRecord, error) {
 	var post db.Post
 	err := r.DB.

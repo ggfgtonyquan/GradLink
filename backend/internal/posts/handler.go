@@ -184,6 +184,15 @@ func (h *Handler) Detail(c *gin.Context) {
 		return
 	}
 
+	if user, ok := auth.CurrentUser(c); ok {
+		favorited, err := h.Service.HasFavorite(user.ID, post.ID)
+		if err != nil {
+			auth.AbortWithError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Internal server error")
+			return
+		}
+		post.Favorited = favorited
+	}
+
 	c.JSON(http.StatusOK, postResponse(post, true))
 }
 
@@ -206,6 +215,7 @@ func postResponse(post *PostView, includeBody bool) gin.H {
 		"tags":      tags,
 		"author":    authorResponse(post.Author),
 		"counts":    countsResponse(post.Counts),
+		"favorited": post.Favorited,
 		"createdAt": post.CreatedAt.UTC().Format(http.TimeFormat),
 	}
 	if includeBody {

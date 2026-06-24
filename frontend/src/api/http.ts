@@ -1,4 +1,4 @@
-import type { Comment, CurrentUser, ModerationItem, Post, Tag } from './types'
+import type { Comment, CurrentUser, ModerationItem, Post, ReportItem, Tag } from './types'
 
 const jsonHeaders = { 'Content-Type': 'application/json' }
 
@@ -71,7 +71,13 @@ export const api = {
     }),
   likePost: (postId: number) => request(`/api/posts/${postId}/like`, { method: 'POST' }),
   favoritePost: (postId: number) => request(`/api/posts/${postId}/favorite`, { method: 'POST' }),
+  unfavoritePost: (postId: number) => request(`/api/posts/${postId}/favorite`, { method: 'DELETE' }),
   report: (payload: { targetType: string; targetId: number; reason: string; detail: string }) =>
     request('/api/reports', { method: 'POST', body: JSON.stringify(payload) }),
   moderation: () => request<{ items: ModerationItem[] }>('/api/admin/moderation'),
+  approveModeration: (id: number) => request<ModerationItem>(`/api/admin/moderation/${id}/approve`, { method: 'POST' }),
+  rejectModeration: (id: number) => request<ModerationItem>(`/api/admin/moderation/${id}/reject`, { method: 'POST' }),
+  reports: () => request<{ reports: ReportItem[] }>('/api/admin/reports'),
+  resolveReport: (id: number) => request<ReportItem>(`/api/admin/reports/${id}/resolve`, { method: 'POST' }),
+  rejectReport: (id: number) => request<ReportItem>(`/api/admin/reports/${id}/reject`, { method: 'POST' }),
 }

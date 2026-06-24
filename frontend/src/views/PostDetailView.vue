@@ -18,9 +18,15 @@
           <ThumbsUp aria-hidden="true" />
           赞 {{ post.counts.likes }}
         </button>
-        <button class="secondary-button" type="button" @click="favoritePost">
-          <Bookmark aria-hidden="true" />
-          收藏
+        <button
+          class="secondary-button favorite-button"
+          :class="{ 'is-favorited': isFavorited }"
+          type="button"
+          :aria-pressed="isFavorited"
+          @click="favoritePost"
+        >
+          <Bookmark aria-hidden="true" :fill="isFavorited ? 'currentColor' : 'none'" />
+          {{ isFavorited ? '已收藏' : '收藏' }}
         </button>
         <button class="secondary-button" type="button">
           <Flag aria-hidden="true" />
@@ -63,6 +69,7 @@ const commentBody = ref('')
 const loading = ref(false)
 const commentSubmitting = ref(false)
 const message = ref('')
+const isFavorited = ref(false)
 
 const authorLine = computed(() => {
   if (!post.value) return ''
@@ -88,6 +95,7 @@ async function loadDetail() {
     const [postResult, commentsResult] = await Promise.all([api.post(postId), api.comments(postId)])
     post.value = postResult
     comments.value = commentsResult.comments
+    isFavorited.value = Boolean(postResult.favorited)
   } catch (error) {
     message.value = error instanceof ApiError ? error.message : '帖子加载失败'
   } finally {
@@ -147,8 +155,11 @@ async function likePost() {
 async function favoritePost() {
   if (!post.value) return
   try {
-    const result = (await api.favoritePost(post.value.id)) as { counts?: Post['counts'] }
+    const result = (await (isFavorited.value ? api.unfavoritePost(post.value.id) : api.favoritePost(post.value.id))) as {
+      counts?: Post['counts']
+    }
     if (result.counts) post.value = { ...post.value, counts: result.counts }
+    isFavorited.value = !isFavorited.value
   } catch (error) {
     message.value = error instanceof ApiError ? error.message : '收藏失败'
   }
@@ -199,6 +210,19 @@ async function favoritePost() {
 .action-bar svg {
   width: 16px;
   height: 16px;
+}
+
+.favorite-button {
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.favorite-button.is-favorited {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+  color: var(--brand);
 }
 
 .comments {

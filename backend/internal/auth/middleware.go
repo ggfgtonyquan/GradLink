@@ -40,6 +40,33 @@ func RequireAuth(database *gorm.DB) gin.HandlerFunc {
 	}
 }
 
+func OptionalAuth(database *gorm.DB) gin.HandlerFunc {
+	store := &SessionStore{DB: database}
+
+	return func(c *gin.Context) {
+		cookie, err := c.Cookie(SessionCookieName)
+		if err != nil || cookie == "" {
+			c.Next()
+			return
+		}
+
+		session, err := store.FindActive(cookie)
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.Next()
+			return
+		}
+		if err != nil {
+			AbortWithError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Internal server error")
+			return
+		}
+		if session.User.Status == db.UserStatusActive {
+			c.Set(currentUserKey, &session.User)
+		}
+
+		c.Next()
+	}
+}
+
 func RequireProfile(database *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		user, ok := CurrentUser(c)

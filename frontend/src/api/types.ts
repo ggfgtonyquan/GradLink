@@ -30,6 +30,7 @@ export interface Post {
   tags: Tag[]
   author: Author
   counts: Counts
+  favorited?: boolean
   createdAt: string
 }
 
@@ -75,4 +76,20 @@ export interface ModerationItem {
   targetId: number
   matchedKeywords: string
   status: string
+  content?: {
+    title?: string
+    body?: string
+    author?: string
+    status?: ContentStatus
+  }
+}
+
+export interface ReportItem {
+  id: number
+  targetType: 'post' | 'comment'
+  targetId: number
+  reason: string
+  detail: string
+  status: string
+  reporterId: number
 }

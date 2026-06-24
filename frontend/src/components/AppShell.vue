@@ -6,7 +6,7 @@
         <strong>应届生交流</strong>
       </RouterLink>
       <div class="top-actions">
-        <RouterLink to="/moderation" class="icon-button" aria-label="审核后台">
+        <RouterLink v-if="auth.isAdmin" to="/moderation" class="icon-button" aria-label="审核后台">
           <ShieldCheck aria-hidden="true" />
         </RouterLink>
         <RouterLink to="/profile" class="profile-button" aria-label="打开个人中心">我</RouterLink>
@@ -26,6 +26,9 @@
 <script setup lang="ts">
 import { ShieldCheck } from '@lucide/vue'
 import BottomNav from './BottomNav.vue'
+import { useAuthStore } from '../stores/auth'
+
+const auth = useAuthStore()
 </script>
 
 <style scoped>

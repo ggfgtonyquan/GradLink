@@ -39,6 +39,34 @@ func TestGetPostDetailReturnsPublishedPostWithTagsAndAuthor(t *testing.T) {
 	if counts["likes"] != float64(0) || counts["comments"] != float64(0) || counts["favorites"] != float64(0) {
 		t.Fatalf("unexpected counts payload: %+v", counts)
 	}
+	if payload["favorited"] != false {
+		t.Fatalf("expected unauthenticated detail to report favorited=false, got %s", rec.Body.String())
+	}
+}
+
+func TestGetPostDetailReportsWhetherCurrentUserFavoritedPost(t *testing.T) {
+	api := testutil.NewAPI(t)
+	author := seedUserWithProfile(t, api, "author@example.com", "Author Nick", "Wuhan University", true)
+	post := seedPost(t, api, author.ID, "已收藏帖子", "正文", db.StatusPublished, time.Now(), 1)
+	cookie := testutil.RegisterUser(t, api, "reader@example.com", "Reader")
+	testutil.SaveProfile(t, api, cookie, "Reader", "Shanghai University", true)
+
+	var reader db.User
+	if err := api.DB.Where("email = ?", "reader@example.com").First(&reader).Error; err != nil {
+		t.Fatalf("load reader: %v", err)
+	}
+	if err := api.DB.Create(&db.Favorite{UserID: reader.ID, PostID: post.ID}).Error; err != nil {
+		t.Fatalf("favorite post: %v", err)
+	}
+
+	rec := api.JSON(t, http.MethodGet, "/api/posts/"+uintString(post.ID), nil, cookie)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected detail success, got %d: %s", rec.Code, rec.Body.String())
+	}
+	payload := testutil.DecodeJSON(t, rec)
+	if payload["favorited"] != true {
+		t.Fatalf("expected detail to report favorited=true, got %s", rec.Body.String())
+	}
 }
 
 func TestGetPostDetailReturnsNotFoundForMissingOrNonPublishedPost(t *testing.T) {

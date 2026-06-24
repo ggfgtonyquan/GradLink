@@ -42,6 +42,7 @@ type PostView struct {
 	Tags      []TagView
 	Author    AuthorView
 	Counts    CountView
+	Favorited bool
 	CreatedAt time.Time
 }
 
@@ -136,7 +137,11 @@ func (s *Service) ListFavoritePosts(userID uint, input ListInput) ([]PostView, e
 		return nil, err
 	}
 
-	return postViews(records), nil
+	views := postViews(records)
+	for i := range views {
+		views[i].Favorited = true
+	}
+	return views, nil
 }
 
 func (s *Service) GetPost(postID uint) (*PostView, error) {
@@ -150,6 +155,10 @@ func (s *Service) GetPost(postID uint) (*PostView, error) {
 
 	view := toPostView(record)
 	return &view, nil
+}
+
+func (s *Service) HasFavorite(userID, postID uint) (bool, error) {
+	return s.Repository.HasFavorite(userID, postID)
 }
 
 func postViews(records []PostRecord) []PostView {
