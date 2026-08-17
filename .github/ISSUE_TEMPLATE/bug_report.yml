@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        请勿在此公开安全漏洞。请使用 Security 的私密漏洞报告功能提交安全问题。
+        感谢反馈。安全漏洞请使用 Security 页面的私密报告入口。
 
   - type: textarea
     id: description
