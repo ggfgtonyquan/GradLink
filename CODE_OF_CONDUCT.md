@@ -36,7 +36,7 @@ This Code of Conduct applies within all community spaces, and also applies when 
 
 ## Enforcement
 
-Instances of abusive, harassing, or otherwise unacceptable behavior may be reported to the community leaders responsible for enforcement by submitting a private GitHub Security Advisory at <https://github.com/ggfgtonyquan/GradLink/security/advisories/new> with the title prefix `[Conduct]`. All complaints will be reviewed and investigated promptly and fairly. The privacy of the reporter will be protected. If private reporting is unavailable, contact the maintainer through their GitHub profile without exposing sensitive details or seeking a personal email address.
+Instances of abusive, harassing, or otherwise unacceptable behavior may be reported to the community leaders responsible for enforcement only by submitting a private GitHub Security Advisory at <https://github.com/ggfgtonyquan/GradLink/security/advisories/new> with the title prefix `[Conduct]`. Maintainers MUST enable GitHub Private Vulnerability Reporting immediately after the repository becomes public and BEFORE announcing or sharing the repository. If the reporting button is unavailable, do not post sensitive details publicly; the repository is not yet configured to receive reports. All complaints will be reviewed and investigated promptly and fairly. The privacy of the reporter will be protected.
 
 All community leaders are obligated to respect the privacy and security of the reporter of any incident.
 

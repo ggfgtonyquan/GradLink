@@ -13,7 +13,9 @@ body:
     attributes:
       label: 问题描述
       description: 请清楚说明实际发生了什么，以及你预期发生什么。
-      placeholder: 实际结果：\n预期结果：
+      placeholder: |
+        实际结果：
+        预期结果：
     validations:
       required: true
 

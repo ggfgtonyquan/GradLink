@@ -196,7 +196,7 @@ docs/      产品设计、实施计划和运行说明
 ## 环境要求
 
 - Go 1.26.6 或更高的兼容版本。
-- Node.js 20 或更高版本。
+- Node.js 20.19+、22.12+ 或 24+（推荐当前 LTS）。
 - npm。
 
 ## 快速启动
@@ -205,7 +205,8 @@ docs/      产品设计、实施计划和运行说明
 
 ```powershell
 cd backend
-$env:GRADLINK_ADMIN_PASSWORD="<set-a-strong-admin-password>"
+$env:GRADLINK_ADDR="127.0.0.1:8080"
+Remove-Item Env:GRADLINK_ADMIN_PASSWORD -ErrorAction SilentlyContinue
 go run ./cmd/server
 ```
 
@@ -223,7 +224,7 @@ npm run dev
 - 后端：`http://localhost:8080`
 - 健康检查：`http://localhost:8080/api/health`
 
-管理员账号为 `admin@gradlink.local`。只有设置 `GRADLINK_ADMIN_PASSWORD` 后，该账号才会启用。
+管理员账号为 `admin@gradlink.local`。新建数据库且未设置 `GRADLINK_ADMIN_PASSWORD` 时，该账号保持禁用；在后续启动时设置变量会启用该账号或轮换其现有密码。管理员一旦启用，后续启动时取消设置该变量不会将其禁用或轮换密码；本地禁用或重置管理员需要重置本地数据库。
 
 完整的配置、局域网访问和数据重置说明见 [本地运行指南](docs/run-local.md)。
 
@@ -231,9 +232,9 @@ npm run dev
 
 | 环境变量 | 默认值 | 说明 |
 | --- | --- | --- |
-| `GRADLINK_ADDR` | `:8080` | 后端监听地址 |
+| `GRADLINK_ADDR` | `:8080` | 默认监听所有网络接口；本地开发建议设为 `127.0.0.1:8080` |
 | `GRADLINK_DB_PATH` | `data/gradlink.db` | SQLite 数据库路径 |
-| `GRADLINK_ADMIN_PASSWORD` | 未设置 | 管理员密码；未设置时管理员禁用 |
+| `GRADLINK_ADMIN_PASSWORD` | 未设置 | 新建数据库时写入禁用的管理员；在后续启动时设置该变量会启用管理员或轮换密码 |
 | `GRADLINK_COOKIE_SECURE` | `false` | HTTPS 生产环境必须设为 `true` |
 
 ## 验证
@@ -270,8 +271,7 @@ Apply these exact replacements:
 ```
 
 ```diff
--GRADLINK_ADMIN_PASSWORD=admin-secret
-+GRADLINK_ADMIN_PASSWORD=<set-a-strong-admin-password>
++$env:GRADLINK_ADMIN_PASSWORD = Read-Host "请输入强管理员密码" -MaskInput
 ```
 
 After the existing front-end address section, add:
@@ -293,7 +293,7 @@ npm run dev -- --host 0.0.0.0
 Run:
 
 ```powershell
-rg -n "C:\\Users\\16021|172\.20\.10\.10|admin-secret" README.md docs/run-local.md
+rg -n "C:\\Users\\|172\.20\.10\.10|fixed administrator password" README.md docs/run-local.md
 ```
 
 Expected: no output.
@@ -883,7 +883,7 @@ Expected: 9 test files and 15 tests pass, Vite builds successfully, and no high-
 
 ```powershell
 cd ..
-rg -n "C:\\Users\\16021|172\.20\.10\.10|admin-secret" README.md docs/run-local.md
+rg -n "C:\\Users\\|172\.20\.10\.10|fixed administrator password" README.md docs/run-local.md
 rg -n "student@example\.com|ref\('password'\)" frontend/src/views/LoginView.vue
 git diff --check
 ```
@@ -907,28 +907,28 @@ git status --short --branch
 git remote -v
 ```
 
-Expected: no missing files, a clean `master` branch, and no remote output.
+Expected: no missing files, a clean `main` branch, and no remote output.
 
 ### Task 8: Rewrite commit emails and rename the release branch
 
 **Files:**
 - Rewrite: Git objects and references under `.git`
-- Rename: branch `master` to `main`
+- Rename the current release branch to `main`
 
 - [ ] **Step 1: Reconfirm the exact destructive scope**
 
 Run:
 
 ```powershell
-$resolvedRepo = (Resolve-Path -LiteralPath 'D:\workspace\GradLink').Path
-if ($resolvedRepo -ne 'D:\workspace\GradLink') { throw "Unexpected repository path: $resolvedRepo" }
+$resolvedRepo = (Resolve-Path -LiteralPath $env:USERPROFILE).Path
+if (-not $resolvedRepo) { throw 'Unable to resolve the current user profile path.' }
 if (git status --porcelain) { throw 'Working tree must be clean before history rewrite.' }
 if (git remote) { throw 'A remote exists; stop before rewriting published history.' }
 git branch --show-current
 git log --all --format='%ae%n%ce' | Sort-Object -Unique
 ```
 
-Expected: path is exactly `D:\workspace\GradLink`, branch is `master`, and the only historical emails are the old QQ address and the new noreply address.
+Expected: the current user profile path resolves, the release branch is current, and the only historical emails are the old source address and the new noreply address.
 
 - [ ] **Step 2: Rewrite matching author and committer emails across all refs**
 

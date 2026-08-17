@@ -2,7 +2,7 @@
 
 ## 项目结构与模块组织
 
-本仓库 `master` 分支包含 GradLink 的文档、后端和前端实现。
+本仓库 `main` 分支包含 GradLink 的文档、后端和前端实现。
 
 - `docs/`：产品规格、实施计划、低保真和参考原型。
 - `backend/`：Go 后端，使用 Gin、GORM、SQLite。
@@ -14,11 +14,7 @@
 
 ## 构建、测试与本地开发命令
 
-除非特别说明，命令都在仓库根目录中运行：
-
-```powershell
-cd D:\workspace\GradLink
-```
+除非特别说明，命令都在仓库根目录中运行。
 
 - 后端开发服务：`cd backend; go run ./cmd/server`
 - 后端测试：`cd backend; go test ./... -count=1`

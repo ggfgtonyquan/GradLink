@@ -32,7 +32,7 @@ docs/      产品设计、实施计划和运行说明
 ## 环境要求
 
 - Go 1.26.6 或更高的兼容版本。
-- Node.js 20 或更高版本。
+- Node.js 20.19+、22.12+ 或 24+（推荐当前 LTS）。
 - npm。
 
 ## 快速启动
@@ -41,7 +41,19 @@ docs/      产品设计、实施计划和运行说明
 
 ```powershell
 cd backend
-$env:GRADLINK_ADMIN_PASSWORD="<set-a-strong-admin-password>"
+$env:GRADLINK_ADDR="127.0.0.1:8080"
+Remove-Item Env:GRADLINK_ADMIN_PASSWORD -ErrorAction SilentlyContinue
+go run ./cmd/server
+```
+
+上面的启动方式适用于新建的本地数据库：会写入一个禁用的管理员种子账号，不会启用管理员登录。
+
+可选：启用管理员或轮换现有管理员密码（PowerShell）：
+
+```powershell
+cd backend
+$env:GRADLINK_ADDR="127.0.0.1:8080"
+$env:GRADLINK_ADMIN_PASSWORD = Read-Host "请输入强管理员密码" -MaskInput
 go run ./cmd/server
 ```
 
@@ -59,15 +71,15 @@ npm run dev
 - 后端：<http://localhost:8080>
 - 健康检查：<http://localhost:8080/api/health>
 
-管理员账号为 `admin@gradlink.local`，仅在设置 `GRADLINK_ADMIN_PASSWORD` 后启用。更完整的启动、重置和验证说明见 [docs/run-local.md](docs/run-local.md)。
+管理员账号为 `admin@gradlink.local`。新建数据库且未设置 `GRADLINK_ADMIN_PASSWORD` 时，该账号保持禁用；设置变量启动服务会启用该账号或轮换其现有密码。管理员一旦启用，后续启动时取消设置该变量不会将其禁用或轮换密码；如需在本地禁用或重置管理员，请重置本地数据库。更完整的启动、重置和验证说明见 [docs/run-local.md](docs/run-local.md)。
 
 ## 配置
 
 | 变量 | 默认值 | 说明 |
 | --- | --- | --- |
-| `GRADLINK_ADDR` | `:8080` | 后端监听地址 |
+| `GRADLINK_ADDR` | `:8080` | 默认监听所有网络接口；本地开发建议设为 `127.0.0.1:8080` |
 | `GRADLINK_DB_PATH` | `data/gradlink.db` | SQLite 数据库路径 |
-| `GRADLINK_ADMIN_PASSWORD` | 未设置（管理员禁用） | 管理员密码；请使用强密码 |
+| `GRADLINK_ADMIN_PASSWORD` | 未设置 | 新建数据库时写入禁用的管理员；在后续启动时设置该变量会启用管理员或轮换密码 |
 | `GRADLINK_COOKIE_SECURE` | `false` | 本地 HTTP 开发可保持 `false`；生产 HTTPS 部署必须设为 `true` |
 
 ## 验证
