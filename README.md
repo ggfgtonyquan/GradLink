@@ -2,17 +2,18 @@
 
 [![CI](https://github.com/ggfgtonyquan/GradLink/actions/workflows/ci.yml/badge.svg)](https://github.com/ggfgtonyquan/GradLink/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-GradLink 是一个面向国内应届生的移动端优先求职交流社区 MVP，提供登录、应届生资料门槛、内容互动和轻量管理能力。
+GradLink 是一个面向国内应届生的移动端优先求职交流网站。MVP 包含邮箱密码登录、应届生资料门槛、帖子、评论、回复、点赞、收藏、举报、关键词审核和轻量管理后台。
 
 > **重要：** 本项目适合本地开发、学习和功能验证。公开部署前必须配置 HTTPS、强管理员密码、Secure Cookie、可靠备份、限流，以及完善的内容和隐私治理。
 
 ## 功能
 
-- 邮箱密码认证与会话管理；完善应届生资料后才能发布内容。
+- 邮箱密码注册、登录和数据库会话。
+- 应届生资料完善门槛。
 - 帖子、评论、回复、点赞和收藏。
-- 标签、个人资料与活动记录。
-- 举报、关键词审核和管理员处理能力。
-- Vue 3 移动端优先界面。
+- 标签筛选、用户主页和活动记录。
+- 内容举报、关键词审核和管理员处理流程。
+- 移动端优先的 Vue 单页界面。
 
 ## 技术栈
 
@@ -22,9 +23,11 @@ GradLink 是一个面向国内应届生的移动端优先求职交流社区 MVP�
 
 ## 项目结构
 
-- `backend/`：Go REST API、领域模块和服务入口。
-- `frontend/`：Vue 3 前端应用。
-- `docs/`：产品、实现和本地运行文档。
+```text
+backend/   Go REST API 和领域模块
+frontend/  Vue 3 Web 前端
+docs/      产品设计、实施计划和运行说明
+```
 
 ## 环境要求
 
