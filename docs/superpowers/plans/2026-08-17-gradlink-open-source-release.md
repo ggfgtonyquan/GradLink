@@ -271,8 +271,13 @@ Apply these exact replacements:
 ```
 
 ```diff
-+$env:GRADLINK_ADMIN_PASSWORD = Read-Host "请输入强管理员密码" -MaskInput
++$secureAdminPassword = Read-Host "请输入强管理员密码" -AsSecureString
++$adminCredential = New-Object System.Net.NetworkCredential('', $secureAdminPassword)
++$env:GRADLINK_ADMIN_PASSWORD = $adminCredential.Password
++Remove-Variable secureAdminPassword, adminCredential
 ```
+
+说明：输入过程会被隐藏；为使服务器进程能够读取密码，环境变量在当前进程中必须保存明文。
 
 After the existing front-end address section, add:
 
@@ -920,15 +925,36 @@ Expected: no missing files, a clean `main` branch, and no remote output.
 Run:
 
 ```powershell
-$resolvedRepo = (Resolve-Path -LiteralPath $env:USERPROFILE).Path
-if (-not $resolvedRepo) { throw 'Unable to resolve the current user profile path.' }
+$expectedRoot = 'D:\workspace\GradLink'
+$resolvedExpectedRoot = (Resolve-Path -LiteralPath $expectedRoot).Path
+$gitRoot = git rev-parse --show-toplevel
+if ($LASTEXITCODE -ne 0) { throw 'Unable to determine the Git work-tree root.' }
+$resolvedActualRoot = (Resolve-Path -LiteralPath $gitRoot).Path
+$isInsideWorkTree = git rev-parse --is-inside-work-tree
+if ($LASTEXITCODE -ne 0 -or $isInsideWorkTree -ne 'true') { throw 'Not inside a Git work tree.' }
+$branch = git branch --show-current
+$head = git rev-parse HEAD
+if ($LASTEXITCODE -ne 0) { throw 'Unable to determine HEAD.' }
+Write-Output "Repository root: $resolvedActualRoot"
+Write-Output "Branch: $branch"
+Write-Output "HEAD: $head"
+if ($resolvedActualRoot -cne $resolvedExpectedRoot) {
+  throw "Unexpected repository root: $resolvedActualRoot"
+}
+if ($branch -ne 'master') { throw "Expected branch master, found $branch." }
 if (git status --porcelain) { throw 'Working tree must be clean before history rewrite.' }
 if (git remote) { throw 'A remote exists; stop before rewriting published history.' }
-git branch --show-current
-git log --all --format='%ae%n%ce' | Sort-Object -Unique
+$requiredFiles = @('LICENSE', 'README.md', 'SECURITY.md', '.github/workflows/ci.yml')
+$missingFiles = @($requiredFiles | Where-Object { -not (Test-Path -LiteralPath $_) })
+if ($missingFiles) { throw "Missing release invariant files: $($missingFiles -join ', ')" }
+$approvedEmail = '136245549+ggfgtonyquan@users.noreply.github.com'
+$headEmails = @(git log -1 --format='%ae%n%ce' | Sort-Object -Unique)
+if ($headEmails.Count -ne 1 -or $headEmails[0] -ne $approvedEmail) {
+  throw "Unexpected HEAD email: $($headEmails -join ', ')"
+}
 ```
 
-Expected: the current user profile path resolves, the release branch is current, and the only historical emails are the old source address and the new noreply address.
+Expected: the exact repository root is validated, the branch is `master`, the work tree is clean with no remote, required release files exist, and HEAD uses the approved noreply email.
 
 - [ ] **Step 2: Rewrite matching author and committer emails across all refs**
 

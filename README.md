@@ -53,9 +53,14 @@ go run ./cmd/server
 ```powershell
 cd backend
 $env:GRADLINK_ADDR="127.0.0.1:8080"
-$env:GRADLINK_ADMIN_PASSWORD = Read-Host "请输入强管理员密码" -MaskInput
+$secureAdminPassword = Read-Host "请输入强管理员密码" -AsSecureString
+$adminCredential = New-Object System.Net.NetworkCredential('', $secureAdminPassword)
+$env:GRADLINK_ADMIN_PASSWORD = $adminCredential.Password
+Remove-Variable secureAdminPassword, adminCredential
 go run ./cmd/server
 ```
+
+输入过程会被隐藏；为使服务器进程能够读取密码，环境变量在当前进程中必须保存明文。
 
 前端（新开一个终端）：
 
