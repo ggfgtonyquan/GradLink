@@ -1,0 +1,34 @@
+name: 功能建议
+description: 提出有助于 GradLink 求职社区的新想法。
+title: "[Feature]: "
+labels: []
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: 问题背景
+      description: 这个需求要解决什么问题？它影响哪些求职社区用户？
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: 建议的解决方案
+      description: 请说明你希望 GradLink 如何解决这个问题。
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 考虑过的替代方案（可选）
+      description: 如有其他可行方案或临时替代办法，请一并说明。
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: 提交前检查
+      options:
+        - label: 我已搜索现有 Issues，且该建议符合 GradLink 面向求职社区的定位。
+          required: true

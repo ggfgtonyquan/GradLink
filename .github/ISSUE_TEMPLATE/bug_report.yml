@@ -1,0 +1,67 @@
+name: Bug 报告
+description: 报告可复现的问题，帮助我们改进 GradLink。
+title: "[Bug]: "
+labels: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        请勿在此公开安全漏洞。请使用 Security 的私密漏洞报告功能提交安全问题。
+
+  - type: textarea
+    id: description
+    attributes:
+      label: 问题描述
+      description: 请清楚说明实际发生了什么，以及你预期发生什么。
+      placeholder: 实际结果：\n预期结果：
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: 复现步骤
+      description: 请提供可稳定复现此问题的最小步骤。
+      placeholder: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: 使用的版本或提交
+      description: 请填写 main 或提交哈希。
+      placeholder: main 或提交哈希
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: 运行环境
+      description: 请填写操作系统、Go、Node、npm 和浏览器版本。
+      placeholder: |
+        OS:
+        Go:
+        Node:
+        npm:
+        浏览器:
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: 日志或截图（可选）
+      description: 请先移除密码、令牌、Cookie 和个人数据，再粘贴日志或上传截图。
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: 提交前检查
+      options:
+        - label: 我已搜索现有 Issues，且确认这不是安全漏洞。
+          required: true
