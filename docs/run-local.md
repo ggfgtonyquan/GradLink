@@ -2,7 +2,7 @@
 
 ## 环境要求
 
-- Go 1.24 或更高版本。
+- Go 1.26.6 或更高的兼容版本。
 - Node.js 20 或更高版本。
 - npm。
 
@@ -27,7 +27,7 @@ go run ./cmd/server
 ```bash
 GRADLINK_ADDR=:8080
 GRADLINK_DB_PATH=data/gradlink.db
-GRADLINK_ADMIN_PASSWORD=admin-secret
+GRADLINK_ADMIN_PASSWORD=<set-a-strong-admin-password>
 GRADLINK_COOKIE_SECURE=false
 ```
 
@@ -48,6 +48,16 @@ npm run dev
 默认前端地址：
 
 - `http://localhost:5173`
+
+### 手机真机测试
+
+电脑和手机连接同一个 Wi-Fi 后，在前端目录启动局域网开发服务：
+
+```powershell
+npm run dev -- --host 0.0.0.0
+```
+
+然后在手机浏览器访问 `http://<电脑的局域网IP>:5173`。仅应在可信任的局域网中使用此方式，避免将开发服务暴露到公共网络。
 
 Vite 已配置 `/api` 代理到 `http://127.0.0.1:8080`，前端开发时可以直接请求 `/api/...`。
 
