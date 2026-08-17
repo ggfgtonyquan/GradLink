@@ -24,8 +24,8 @@ import { useAuthStore } from '../stores/auth'
 
 const auth = useAuthStore()
 const router = useRouter()
-const email = ref('student@example.com')
-const password = ref('password')
+const email = ref('')
+const password = ref('')
 const errorMessage = ref('')
 
 async function submit() {
