@@ -25,10 +25,19 @@ go run ./cmd/server
 可选环境变量：
 
 ```bash
-GRADLINK_ADDR=:8080
-GRADLINK_DB_PATH=data/gradlink.db
-GRADLINK_ADMIN_PASSWORD=<set-a-strong-admin-password>
-GRADLINK_COOKIE_SECURE=false
+export GRADLINK_ADDR=":8080"
+export GRADLINK_DB_PATH="data/gradlink.db"
+export GRADLINK_ADMIN_PASSWORD="<set-a-strong-admin-password>"
+export GRADLINK_COOKIE_SECURE="false"
+```
+
+PowerShell：
+
+```powershell
+$env:GRADLINK_ADDR=":8080"
+$env:GRADLINK_DB_PATH="data/gradlink.db"
+$env:GRADLINK_ADMIN_PASSWORD="<set-a-strong-admin-password>"
+$env:GRADLINK_COOKIE_SECURE="false"
 ```
 
 说明：
@@ -97,7 +106,7 @@ Remove-Item backend\data\gradlink.db-wal -ErrorAction SilentlyContinue
 
 ```bash
 cd backend
-go test ./...
+go test ./... -count=1
 ```
 
 前端：
