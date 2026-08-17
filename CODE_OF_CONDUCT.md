@@ -36,7 +36,7 @@ This Code of Conduct applies within all community spaces, and also applies when 
 
 ## Enforcement
 
-Instances of abusive, harassing, or otherwise unacceptable behavior may be reported to the community leaders responsible for enforcement by submitting a private GitHub Security Advisory at <https://github.com/ggfgtonyquan/GradLink/security/advisories/new> with the title prefix `[Conduct]`. Reports will be reviewed promptly and fairly, and the privacy of the reporter will be protected. If private reporting is unavailable, contact the maintainer through their GitHub profile without exposing sensitive details or seeking a personal email address.
+Instances of abusive, harassing, or otherwise unacceptable behavior may be reported to the community leaders responsible for enforcement by submitting a private GitHub Security Advisory at <https://github.com/ggfgtonyquan/GradLink/security/advisories/new> with the title prefix `[Conduct]`. All complaints will be reviewed and investigated promptly and fairly. The privacy of the reporter will be protected. If private reporting is unavailable, contact the maintainer through their GitHub profile without exposing sensitive details or seeking a personal email address.
 
 All community leaders are obligated to respect the privacy and security of the reporter of any incident.
 
@@ -70,4 +70,14 @@ Community leaders will follow these Community Impact Guidelines in determining t
 
 ## Attribution
 
-This Code of Conduct is adapted from the [Contributor Covenant](https://www.contributor-covenant.org/version/2/1/code_of_conduct.html), version 2.1.
+This Code of Conduct is adapted from the [Contributor Covenant](https://www.contributor-covenant.org/version/2/1/code_of_conduct.html), version 2.1, available at <https://www.contributor-covenant.org/version/2/1/code_of_conduct.html>.
+
+Community Impact Guidelines were inspired by [Mozilla's code of conduct enforcement ladder](https://github.com/mozilla/diversity).
+
+For answers to common questions about this code of conduct, see the [FAQ](https://www.contributor-covenant.org/faq). Translations are available at [https://www.contributor-covenant.org/translations](https://www.contributor-covenant.org/translations).
+
+Other formats:
+
+- [Markdown](https://www.contributor-covenant.org/version/2/1/code_of_conduct/code_of_conduct.md)
+- [Plain text](https://www.contributor-covenant.org/version/2/1/code_of_conduct/code_of_conduct.txt)
+- [AsciiDoc](https://www.contributor-covenant.org/version/2/1/code_of_conduct/code_of_conduct.adoc)
